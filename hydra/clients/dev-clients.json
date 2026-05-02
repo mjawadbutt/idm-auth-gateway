@@ -1,0 +1,34 @@
+[
+  {
+    "client_id": "test-saas-app",
+    "client_name": "Test SaaS Application",
+    "client_secret": "test-saas-app-secret",
+    "redirect_uris": [
+      "http://localhost:9000/callback"
+    ],
+    "post_logout_redirect_uris": [
+      "http://localhost:9000"
+    ],
+    "response_types": ["code"],
+    "grant_types": ["authorization_code", "refresh_token"],
+    "scope": "openid offline_access profile email",
+    "token_endpoint_auth_method": "client_secret_basic",
+    "subject_type": "public"
+  },
+  {
+    "client_id": "idm-admin-console",
+    "client_name": "IDM Admin Console",
+    "client_secret": "idm-admin-console-secret",
+    "redirect_uris": [
+      "http://localhost:4000/callback"
+    ],
+    "post_logout_redirect_uris": [
+      "http://localhost:4000"
+    ],
+    "response_types": ["code"],
+    "grant_types": ["authorization_code", "refresh_token"],
+    "scope": "openid offline_access profile email",
+    "token_endpoint_auth_method": "client_secret_basic",
+    "subject_type": "public"
+  }
+]

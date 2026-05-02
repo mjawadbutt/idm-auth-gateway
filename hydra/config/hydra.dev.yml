@@ -1,0 +1,49 @@
+version: v2
+
+dsn: sqlite:///tmp/hydra-dev.db?_fk=true
+
+serve:
+  public:
+    port: 4444
+    host: localhost
+    cors:
+      enabled: true
+      allowed_origins:
+        - http://localhost:3000
+        - http://localhost:8080
+      allowed_methods:
+        - GET
+        - POST
+        - PUT
+        - DELETE
+      allowed_headers:
+        - Authorization
+        - Content-Type
+      exposed_headers:
+        - Content-Type
+  admin:
+    port: 4445
+    host: localhost
+
+urls:
+  self:
+    issuer: http://localhost:4444
+  login: http://localhost:8080/login
+  consent: http://localhost:8080/consent
+  logout: http://localhost:8080/logout
+  error: http://localhost:8080/error
+
+secrets:
+  system:
+    - dev-system-secret-change-in-prod-min-32-chars
+
+oauth2:
+  expose_internal_errors: true
+  pkce:
+    enforced: true
+
+log:
+  level: debug
+  format: text
+
+dev: true

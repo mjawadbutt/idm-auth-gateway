@@ -1,0 +1,42 @@
+# Hydra binary (downloaded locally, not committed)
+hydra/bin/
+
+# SQLite dev database
+*.db
+*.db-shm
+*.db-wal
+
+# Maven
+target/
+*.class
+*.jar
+!*-sources.jar
+
+# Node / React
+node_modules/
+dist/
+build/
+.vite/
+
+# IDE
+.idea/
+.vscode/
+*.iml
+*.iws
+*.ipr
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Spring Boot
+spring-shell.log
+
+# Environment overrides (never commit secrets)
+.env
+.env.local
+application-local.yml

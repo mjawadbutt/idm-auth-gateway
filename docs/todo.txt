@@ -1,0 +1,7 @@
+create github repo
+migrate settings from frs 
+create full monorepo structure
+complete setup/startup of hydra
+impl login app and backend 
+see compoements md - build vs configrued
+
