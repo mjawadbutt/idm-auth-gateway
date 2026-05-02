@@ -18,9 +18,11 @@ dist/
 build/
 .vite/
 
+# React build output served by Spring Boot (generated at build time)
+login-app/src/main/resources/static/
+
 # IDE
 .idea/
-.vscode/
 *.iml
 *.iws
 *.ipr
@@ -39,4 +41,4 @@ spring-shell.log
 # Environment overrides (never commit secrets)
 .env
 .env.local
-application-local.yml
+application-local.properties

@@ -1,0 +1,22 @@
+{
+  "prettier.proseWrap": "always",
+  "prettier.printWidth": 120,
+  "[markdown]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "editor.formatOnSave": true
+  },
+  "[java]": {
+    "editor.defaultFormatter": "redhat.java",
+    "editor.formatOnSave": true,
+    "editor.tabSize": 2,
+    "editor.insertSpaces": true,
+    "editor.detectIndentation": false
+  },
+  "java.format.settings.profile": "GoogleStyle",
+  "java.format.settings.url": "",
+  "java.format.tabSize": 2,
+  "java.format.insertSpaces": true,
+  "java.format.onType": false,
+  "java.format.comments.enabled": true,
+  "editor.rulers": [120]
+}
