@@ -28,6 +28,8 @@ export interface LoginResponse {
   mfaHint?: string;
   tenantSelectionRequired: boolean;
   availableTenantIds?: string[];
+  userId?: string;
+  tenantId?: string;
 }
 
 export interface HydraLoginRequest {

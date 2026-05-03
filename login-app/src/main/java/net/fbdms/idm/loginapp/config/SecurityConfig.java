@@ -34,6 +34,7 @@ public class SecurityConfig {
         .csrf(AbstractHttpConfigurer::disable)
         .authorizeHttpRequests(auth -> auth
             .requestMatchers("/login-app/**").permitAll()
+            .requestMatchers("/test-harness.html").permitAll()
             .requestMatchers("/idm-auth-gateway/login/**").permitAll()
             .requestMatchers("/actuator/health", "/actuator/info").permitAll()
             .anyRequest().denyAll());

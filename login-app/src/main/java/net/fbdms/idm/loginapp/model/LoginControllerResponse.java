@@ -22,7 +22,9 @@ public record LoginControllerResponse(
     String mfaChallengeToken,
     String mfaHint,
     boolean tenantSelectionRequired,
-    List<String> availableTenantIds) {
+    List<String> availableTenantIds,
+    String userId,
+    String tenantId) {
 
   public static Builder builder() {
     return new Builder();
@@ -36,6 +38,8 @@ public record LoginControllerResponse(
     private String mfaHint;
     private boolean tenantSelectionRequired;
     private List<String> availableTenantIds;
+    private String userId;
+    private String tenantId;
 
     private Builder() {
     }
@@ -70,10 +74,20 @@ public record LoginControllerResponse(
       return this;
     }
 
+    public Builder userId(final String userId) {
+      this.userId = userId;
+      return this;
+    }
+
+    public Builder tenantId(final String tenantId) {
+      this.tenantId = tenantId;
+      return this;
+    }
+
     public LoginControllerResponse build() {
       return new LoginControllerResponse(
           redirectTo, mfaRequired, mfaChallengeToken, mfaHint,
-          tenantSelectionRequired, availableTenantIds);
+          tenantSelectionRequired, availableTenantIds, userId, tenantId);
     }
   }
 }

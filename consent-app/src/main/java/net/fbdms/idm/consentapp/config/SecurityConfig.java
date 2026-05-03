@@ -31,6 +31,7 @@ public class SecurityConfig {
         .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
         .csrf(AbstractHttpConfigurer::disable)
         .authorizeHttpRequests(auth -> auth
+            .requestMatchers("/consent/**").permitAll()
             .requestMatchers("/idm-auth-gateway/consent/**").permitAll()
             .requestMatchers("/actuator/health", "/actuator/info").permitAll()
             .anyRequest().denyAll());

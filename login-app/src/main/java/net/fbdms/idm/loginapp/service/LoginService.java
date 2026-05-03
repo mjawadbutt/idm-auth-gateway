@@ -80,11 +80,13 @@ public class LoginService {
    * Processes a login form submission.
    *
    * <p>
-   * If Hydra signals {@code skip=true} the user already has an active session and the challenge must be
+   * If Hydra signals {@code skip=true} the user already has an active session and
+   * the challenge must be
    * accepted immediately without re-verifying credentials.
    *
    * <p>
-   * Otherwise: verifies credentials, resolves tenant (showing selector if multi-tenant), then either
+   * Otherwise: verifies credentials, resolves tenant (showing selector if
+   * multi-tenant), then either
    * accepts the challenge or signals that further interaction is needed.
    * MFA is triggered after tenant selection, not before.
    *
@@ -94,7 +96,8 @@ public class LoginService {
   public @NotNull LoginControllerResponse processLogin(final @NotNull LoginControllerRequest request) {
     final HydraLoginRequest hydraLoginRequest = hydraAdminClient.fetchLoginRequest(request.loginChallenge());
 
-    //-- Hydra skip=true means the user already has an active session — accept immediately.
+    // -- Hydra skip=true means the user already has an active session — accept
+    // immediately.
     if (hydraLoginRequest.skip()) {
       LOGGER.debug("Hydra skip=true for challenge={}, accepting with existing subject={}",
           request.loginChallenge(), hydraLoginRequest.subject());
@@ -119,22 +122,26 @@ public class LoginService {
     final TenantSelectionResult tenantResult = tenantSelectorService.selectTenant(
         identity.userId(), identity.tenantIds(), request.tenantId());
 
-    //-- Multi-tenant user with no preference — show selector first, MFA comes after.
+    // -- Multi-tenant user with no preference — show selector first, MFA comes
+    // after.
     if (tenantResult.selectionRequired()) {
       return LoginControllerResponse.builder()
           .tenantSelectionRequired(true)
           .availableTenantIds(identity.tenantIds())
           .mfaRequired(identity.mfaRequired())
+          .userId(identity.userId())
           .build();
     }
 
-    //-- Single tenant (or preference already expressed) — check MFA next.
+    // -- Single tenant (or preference already expressed) — check MFA next.
     if (identity.mfaRequired()) {
       final MfaChallenge mfaChallenge = mfaService.triggerChallenge(identity.userId());
       return LoginControllerResponse.builder()
           .mfaRequired(true)
           .mfaChallengeToken(mfaChallenge.challengeToken())
           .mfaHint(mfaChallenge.hint())
+          .userId(identity.userId())
+          .tenantId(tenantResult.tenantId())
           .build();
     }
 
@@ -171,6 +178,8 @@ public class LoginService {
           .mfaRequired(true)
           .mfaChallengeToken(mfaChallenge.challengeToken())
           .mfaHint(mfaChallenge.hint())
+          .userId(request.userId())
+          .tenantId(tenantResult.tenantId())
           .build();
     }
 
@@ -231,8 +240,10 @@ public class LoginService {
         new HydraLoginRejectRequest(error, errorDescription));
   }
 
-  //-- Hydra challenge tokens are opaque — client ID is fetched from the challenge details.
-  //-- Used in paths where a second Hydra call is acceptable (tenant selection, MFA audit path).
+  // -- Hydra challenge tokens are opaque — client ID is fetched from the
+  // challenge details.
+  // -- Used in paths where a second Hydra call is acceptable (tenant selection,
+  // MFA audit path).
   private String extractClientId(final String loginChallenge) {
     try {
       return hydraAdminClient.fetchLoginRequest(loginChallenge).client().clientId();

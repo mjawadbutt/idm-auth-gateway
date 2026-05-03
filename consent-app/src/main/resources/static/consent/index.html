@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Processing…</title>
+  <style>
+    body { font-family: system-ui, sans-serif; display: flex; align-items: center;
+           justify-content: center; min-height: 100vh; margin: 0; background: #f8f9fa; }
+    .msg { text-align: center; color: #555; }
+    .spinner { width: 32px; height: 32px; border: 3px solid #dee2e6;
+               border-top-color: #0d6efd; border-radius: 50%;
+               animation: spin 0.7s linear infinite; margin: 0 auto 16px; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .error { color: #dc3545; max-width: 480px; word-break: break-word; }
+  </style>
+</head>
+<body>
+  <div class="msg" id="msg">
+    <div class="spinner"></div>
+    <p>Processing consent…</p>
+  </div>
+
+  <script>
+    (async function () {
+      const params = new URLSearchParams(window.location.search);
+      const challenge = params.get('consent_challenge');
+
+      if (!challenge) {
+        document.getElementById('msg').innerHTML =
+          '<p class="error">Missing consent_challenge parameter.</p>';
+        return;
+      }
+
+      try {
+        const resp = await fetch(
+          '/idm-auth-gateway/consent?consent_challenge=' + encodeURIComponent(challenge),
+          { method: 'POST' }
+        );
+
+        const body = await resp.json();
+
+        if (!resp.ok) {
+          document.getElementById('msg').innerHTML =
+            '<p class="error">Consent failed (' + resp.status + '): '
+            + (body.message ?? JSON.stringify(body)) + '</p>';
+          return;
+        }
+
+        if (body.redirectTo) {
+          window.location.href = body.redirectTo;
+        } else {
+          document.getElementById('msg').innerHTML =
+            '<p class="error">Unexpected response — no redirect URL returned.</p>';
+        }
+      } catch (err) {
+        document.getElementById('msg').innerHTML =
+          '<p class="error">Request failed: ' + err.message + '</p>';
+      }
+    })();
+  </script>
+</body>
+</html>

@@ -107,12 +107,15 @@ export class LoginPageComponent implements OnInit {
     if (response.tenantSelectionRequired) {
       this.availableTenantIds = response.availableTenantIds ?? [];
       this.mfaRequired = response.mfaRequired;
+      this.userId = response.userId ?? '';
       this.step = 'tenant-select';
       return;
     }
     if (response.mfaRequired) {
       this.mfaChallengeToken = response.mfaChallengeToken ?? '';
       this.mfaHint = response.mfaHint ?? null;
+      this.userId = response.userId ?? '';
+      this.tenantId = response.tenantId ?? '';
       this.step = 'mfa';
     }
   }

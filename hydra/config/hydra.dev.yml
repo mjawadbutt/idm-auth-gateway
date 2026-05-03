@@ -21,6 +21,7 @@ serve:
         - Content-Type
       exposed_headers:
         - Content-Type
+      allow_credentials: true
   admin:
     port: 4445
     host: localhost
@@ -28,8 +29,8 @@ serve:
 urls:
   self:
     issuer: http://localhost:4444
-  login: http://localhost:8080/idm-auth-gateway/login
-  consent: http://localhost:8082/idm-auth-gateway/consent
+  login: http://localhost:8080/login-app/index.html
+  consent: http://localhost:8082/consent/index.html
   logout: http://localhost:8080/idm-auth-gateway/logout
   error: http://localhost:8080/idm-auth-gateway/error
 
