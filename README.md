@@ -17,7 +17,6 @@ idm-auth-gateway/
 │   │   └── dev-clients.json            # OAuth2 client definitions registered for local dev
 │   └── scripts/
 │       ├── start-dev.sh                # macOS / Linux / WSL2 — downloads binary if needed, starts Hydra
-│       ├── start-dev.ps1               # Windows PowerShell equivalent
 │       └── register-clients.sh         # Registers dev-clients.json via Hydra admin API
 │
 ├── login-app/                          # Spring Boot + React Login App (IDM-1 core build)
@@ -106,7 +105,7 @@ idm-auth-gateway/
 
 | Tool    | Version | Notes                           |
 | ------- | ------- | ------------------------------- |
-| Java    | 21+     | LTS                             |
+| Java    | 17+     | LTS                             |
 | Maven   | 3.9+    |                                 |
 | Node.js | 20+     | For React frontend              |
 | curl    | any     | For download scripts            |
@@ -114,6 +113,21 @@ idm-auth-gateway/
 | bash    | any     | macOS/Linux/Git Bash on Windows |
 
 ## Running Locally (No Docker Required)
+
+### WSL2 / AlmaLinux 9 One-Time Setup (Windows only)
+
+Run the following in **PowerShell as Administrator** — one time per machine:
+
+```powershell
+wsl --install -d AlmaLinux-9
+```
+
+When the AlmaLinux terminal opens for the first time, create a Linux username and password when prompted, then install
+the required tools:
+
+```bash
+sudo dnf install -y curl jq tar
+```
 
 ### Step 1 — Start Hydra
 
@@ -124,15 +138,14 @@ chmod +x hydra/scripts/start-dev.sh
 ./hydra/scripts/start-dev.sh
 ```
 
-**Windows (PowerShell — recommended):**
+**Windows:** Open the AlmaLinux terminal and navigate to the repo:
 
 ```powershell
-.\hydra\scripts\start-dev.ps1
+wsl -d AlmaLinux-9
 ```
 
-**Windows (Git Bash — alternative):**
-
 ```bash
+cd /mnt/c/projects/idmx-platform/idm-auth-gateway
 ./hydra/scripts/start-dev.sh
 ```
 
@@ -144,8 +157,7 @@ This will:
 - Start Hydra on ports 4444 (public) and 4445 (admin)
 
 > **Windows:** The standard Windows Hydra binary does not include SQLite. Windows developers should use WSL2 with
-> AlmaLinux 9 and run the bash script inside it — see
-> [Architecture Decisions](docs/idm-auth-gateway-architecture-decisions.md) Decision 10 for setup steps.
+> AlmaLinux 9 — see the [WSL2 setup section above](#wsl2--almalinux-9-one-time-setup-windows-only).
 
 ### Step 2 — Register Dev OAuth2 Clients
 
@@ -165,14 +177,23 @@ curl http://localhost:4444/.well-known/openid-configuration
 curl http://localhost:4445/health/ready
 ```
 
-### Step 4 — Start Login App (coming soon)
+### Step 4 — Start Login App
+
+Run via the IntelliJ run configuration **LoginAppApplication**, or from the command line:
 
 ```bash
-cd login-app
-mvn spring-boot:run -Dspring-boot.run.profiles=local
+mvn spring-boot:run -pl login-app -Dspring-boot.run.arguments="--spring.profiles.active=winLocal"
 ```
 
-### Step 5 — Start React Dev Server (coming soon)
+### Step 5 — Start Consent App
+
+Run via the IntelliJ run configuration **ConsentAppApplication**, or from the command line:
+
+```bash
+mvn spring-boot:run -pl consent-app -Dspring-boot.run.arguments="--spring.profiles.active=winLocal"
+```
+
+### Step 6 — Start React Dev Server (coming soon)
 
 ```bash
 cd login-app/frontend
@@ -194,6 +215,7 @@ npm run dev
 | Hydra Public     | 4444 |
 | Hydra Admin      | 4445 |
 | Login App        | 8080 |
+| Consent App      | 8081 |
 | React Dev Server | 3000 |
 
 ## Documentation
