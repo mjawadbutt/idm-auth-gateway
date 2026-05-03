@@ -1,0 +1,37 @@
+<form (ngSubmit)="onSubmit()" #loginForm="ngForm" novalidate>
+
+  <div class="mb-3">
+    <label for="username" class="form-label">Username</label>
+    <input
+      id="username"
+      type="text"
+      class="form-control"
+      [(ngModel)]="username"
+      name="username"
+      required
+      autocomplete="username"
+      [disabled]="loading" />
+  </div>
+
+  <div class="mb-3">
+    <label for="password" class="form-label">Password</label>
+    <input
+      id="password"
+      type="password"
+      class="form-control"
+      [(ngModel)]="password"
+      name="password"
+      required
+      autocomplete="current-password"
+      [disabled]="loading" />
+  </div>
+
+  <button
+    type="submit"
+    class="btn btn-primary w-100"
+    [disabled]="loading || !username.trim() || !password">
+    <span *ngIf="loading" class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+    {{ loading ? 'Signing in…' : 'Sign In' }}
+  </button>
+
+</form>

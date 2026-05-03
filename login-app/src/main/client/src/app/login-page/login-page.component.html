@@ -1,0 +1,29 @@
+<div class="login-container">
+  <div class="login-card card shadow-sm p-4">
+
+    <h4 class="card-title text-center mb-1">Sign In</h4>
+    <p *ngIf="clientName" class="text-center text-muted small mb-3">{{ clientName }}</p>
+
+    <div *ngIf="errorMessage" class="alert alert-danger py-2" role="alert">
+      {{ errorMessage }}
+    </div>
+
+    <app-login-form
+      *ngIf="step === 'credentials'"
+      [loading]="loading"
+      (submitted)="onCredentialsSubmit($event)" />
+
+    <app-tenant-selector
+      *ngIf="step === 'tenant-select'"
+      [tenantIds]="availableTenantIds"
+      [loading]="loading"
+      (selected)="onTenantSelected($event)" />
+
+    <app-mfa-form
+      *ngIf="step === 'mfa'"
+      [hint]="mfaHint"
+      [loading]="loading"
+      (submitted)="onMfaSubmit($event)" />
+
+  </div>
+</div>

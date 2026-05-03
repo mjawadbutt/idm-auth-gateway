@@ -1,0 +1,27 @@
+<form (ngSubmit)="onSubmit()" novalidate>
+
+  <p class="text-muted small mb-3">Your account belongs to multiple organisations. Please select one to continue.</p>
+
+  <div class="mb-3">
+    <label for="tenantSelect" class="form-label">Organisation</label>
+    <select
+      id="tenantSelect"
+      class="form-select"
+      [(ngModel)]="selectedTenantId"
+      name="tenantId"
+      required
+      [disabled]="loading">
+      <option value="" disabled>Select an organisation…</option>
+      <option *ngFor="let id of tenantIds" [value]="id">{{ id }}</option>
+    </select>
+  </div>
+
+  <button
+    type="submit"
+    class="btn btn-primary w-100"
+    [disabled]="loading || !selectedTenantId">
+    <span *ngIf="loading" class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+    {{ loading ? 'Continuing…' : 'Continue' }}
+  </button>
+
+</form>

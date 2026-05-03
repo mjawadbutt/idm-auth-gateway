@@ -1,0 +1,29 @@
+<form (ngSubmit)="onSubmit()" novalidate>
+
+  <p class="text-muted small mb-3">
+    {{ hint ? hint : 'Enter the verification code sent to your registered device.' }}
+  </p>
+
+  <div class="mb-3">
+    <label for="mfaCode" class="form-label">Verification Code</label>
+    <input
+      id="mfaCode"
+      type="text"
+      class="form-control"
+      [(ngModel)]="userResponse"
+      name="mfaCode"
+      required
+      autocomplete="one-time-code"
+      inputmode="numeric"
+      [disabled]="loading" />
+  </div>
+
+  <button
+    type="submit"
+    class="btn btn-primary w-100"
+    [disabled]="loading || !userResponse.trim()">
+    <span *ngIf="loading" class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+    {{ loading ? 'Verifying…' : 'Verify' }}
+  </button>
+
+</form>
