@@ -3,6 +3,12 @@
 OAuth2 / OIDC authentication gateway for the FBDMS Digital Experience Suite. Built on
 [Ory Hydra](https://github.com/ory/hydra) with a Spring Boot Login App and Consent App.
 
+This PoC demonstrates:
+
+- **Ory Hydra as the token engine** — OpenID Certified, OAuth2.1 compliant, headless by design
+- **Authorization code flow with PKCE end-to-end** — from browser through Login App and Consent App to token issuance
+- **Both OIDC and OAuth2** — include `openid` in scope for an ID token + access token; omit it for access token only
+
 ---
 
 ## Repository Structure
@@ -260,3 +266,41 @@ Any user can log in via any client — users and clients are independent.
 | ---------------------------------------------------------------------------------------------------- | ---------------------------------------------------- |
 | [`docs/idm-auth-gateway-architecture-decisions.md`](docs/idm-auth-gateway-architecture-decisions.md) | Architecture and technology decisions with rationale |
 | [`docs/idm-auth-gateway-component-design.md`](docs/idm-auth-gateway-component-design.md)             | Component map, auth flow, interaction diagram        |
+
+---
+
+## PoC Status
+
+### Covered
+
+| Area                              | Detail                                                                                   |
+| --------------------------------- | ---------------------------------------------------------------------------------------- |
+| Hydra deployment                  | SQLite-backed local dev setup, binary auto-download, migration                           |
+| Authorization code flow with PKCE | Full end-to-end — browser → Hydra → Login App → Consent App → token                      |
+| Login App — Angular client        | Credential form, tenant selector, MFA screen                                             |
+| Login App — backend               | Hydra challenge lifecycle, credential verification, tenant resolution, MFA orchestration |
+| Consent App                       | Auto-accept for first-party clients, custom claim injection                              |
+| Custom token claims               | `tenant_id`, `tenant_name`, `roles`, `permissions` injected at consent time              |
+| Multi-tenant flow                 | Tenant selector shown for users with multiple tenants (alice)                            |
+| MFA flow                          | MFA screen shown and verified (bob) — mock always passes                                 |
+| OIDC                              | ID token issued when `openid` scope requested — claims visible in test harness           |
+| OAuth2                            | Access token + refresh token issued regardless of `openid` scope                         |
+| Test harness                      | Simulates a SaaS app — PKCE generation, auth code callback, token exchange               |
+
+### Not Yet Built
+
+| Area                                   | Detail                                                                                          |
+| -------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| Real identity store (IDM-2)            | `IdentityDirectoryService` is mocked — no real LDAP, AD, or database behind it                  |
+| Real MFA (IDM-5)                       | `MfaService` is mocked — no real TOTP, WebAuthn, or SMS                                         |
+| Federation                             | No upstream SAML/OIDC provider configured in Hydra; IDM-5 federation adapter not built          |
+| Third-party consent UI                 | `ConsentService` signals `consentUiRequired=true` for non-first-party clients but no UI exists  |
+| Logout                                 | Hydra config has a logout URL but no logout endpoint is implemented in Login App                |
+| Token revocation / back-channel logout | Hydra supports it — not wired                                                                   |
+| Silent re-auth (`prompt=none`)         | Hydra supports tenant switching without re-entering credentials — not tested                    |
+| `KeyManagementService` real impl       | Interface defined — AWS KMS and Vault implementations not built                                 |
+| `SecretsService` real impl             | Interface defined — AWS Secrets Manager and Vault implementations not built                     |
+| Spring Cloud secrets integration       | Secrets are in properties files — Spring Cloud Vault/AWS SM not wired                           |
+| Audit pipeline (IDM-6)                 | `AuditService` is mocked — events are not emitted to any real pipeline                          |
+| Production Hydra config                | `hydra.prod.yml` is a template — PostgreSQL DSN, KMS secrets, and production URLs not filled in |
+| Production client registration         | Only dev scripts exist — no automated client onboarding tooling                                 |
