@@ -1,7 +1,7 @@
 package net.fbdms.idm.mocks;
 
-import net.fbdms.idm.common.dto.TenantContext;
-import net.fbdms.idm.common.dto.UserIdentity;
+import net.fbdms.idm.common.model.TenantContext;
+import net.fbdms.idm.common.model.UserIdentity;
 import net.fbdms.idm.common.exception.AuthenticationException;
 import net.fbdms.idm.common.exception.TenantResolutionException;
 import net.fbdms.idm.common.service.IdentityDirectoryService;

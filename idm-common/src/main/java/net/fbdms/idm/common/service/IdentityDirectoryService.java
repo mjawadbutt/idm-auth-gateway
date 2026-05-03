@@ -1,7 +1,7 @@
 package net.fbdms.idm.common.service;
 
-import net.fbdms.idm.common.dto.TenantContext;
-import net.fbdms.idm.common.dto.UserIdentity;
+import net.fbdms.idm.common.model.TenantContext;
+import net.fbdms.idm.common.model.UserIdentity;
 import jakarta.validation.constraints.NotNull;
 
 /**

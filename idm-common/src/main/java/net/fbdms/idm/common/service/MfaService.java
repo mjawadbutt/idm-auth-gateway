@@ -1,6 +1,6 @@
 package net.fbdms.idm.common.service;
 
-import net.fbdms.idm.common.dto.MfaChallenge;
+import net.fbdms.idm.common.model.MfaChallenge;
 import jakarta.validation.constraints.NotNull;
 
 /**

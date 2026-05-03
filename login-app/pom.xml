@@ -24,7 +24,6 @@
     <dependency>
       <groupId>net.fbdms.iws</groupId>
       <artifactId>xws-common-lib</artifactId>
-      <version>0.0.1-SNAPSHOT</version>
     </dependency>
 
     <dependency>
@@ -43,9 +42,11 @@
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-actuator</artifactId>
     </dependency>
+
+    <!-- https://mvnrepository.com/artifact/org.mapstruct/mapstruct -->
     <dependency>
-      <groupId>org.projectlombok</groupId>
-      <artifactId>lombok</artifactId>
+      <groupId>org.mapstruct</groupId>
+      <artifactId>mapstruct</artifactId>
     </dependency>
 
     <!-- Test -->
@@ -67,6 +68,26 @@
   </dependencies>
 
   <build>
+    <resources>
+      <resource>
+        <directory>${main-resources-dir}</directory>
+        <!--
+          Enable filtering explicitly, because otherwise only files directly under resources are processed
+          as templates and any files in sub-dirs are not.
+        -->
+        <filtering>true</filtering>
+      </resource>
+    </resources>
+    <testResources>
+      <testResource>
+        <directory>${test-resources-dir}</directory>
+        <!--
+          Enable filtering explicitly, because otherwise only files directly under resources are processed
+          as templates and any files in sub-dirs are not.
+        -->
+        <filtering>true</filtering>
+      </testResource>
+    </testResources>
     <plugins>
       <plugin>
         <groupId>org.springframework.boot</groupId>
