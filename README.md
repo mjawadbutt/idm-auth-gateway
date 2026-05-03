@@ -122,11 +122,53 @@ Run the following in **PowerShell as Administrator** — one time per machine:
 wsl --install -d AlmaLinux-9
 ```
 
-When the AlmaLinux terminal opens for the first time, create a Linux username and password when prompted, then install
-the required tools:
+When the AlmaLinux terminal opens for the first time, create a Linux username and password when prompted.
+
+**Enable mirrored networking** so WSL2 shares the Windows host network (required for corporate proxy access). Create or
+edit `C:\Users\<your-username>\.wslconfig`:
+
+```ini
+[wsl2]
+networkingMode=mirrored
+```
+
+Restart WSL for the change to take effect:
+
+```powershell
+wsl --shutdown
+wsl -d AlmaLinux-9
+```
+
+**Configure the corporate proxy** for dnf (replace `<username>`, `<password>`, `<proxy-host>`, and `<port>` with your
+values):
+
+```bash
+sudo tee -a /etc/dnf/dnf.conf <<EOF
+proxy=http://<username>:<password>@<proxy-host>:<port>
+sslverify=false
+EOF
+```
+
+**Configure proxy for shell sessions** so curl and other tools can reach the internet. Add the following to `~/.bashrc`
+(replace with your actual credentials):
+
+```bash
+echo 'export http_proxy=http://<username>:<password>@<proxy-host>:<port>' >> ~/.bashrc
+echo 'export https_proxy=http://<username>:<password>@<proxy-host>:<port>' >> ~/.bashrc
+echo 'export no_proxy=localhost,127.0.0.1' >> ~/.bashrc
+source ~/.bashrc
+```
+
+**Install required tools:**
 
 ```bash
 sudo dnf install -y curl jq tar
+```
+
+Optionally set AlmaLinux as the default WSL distribution so `wsl` opens it directly:
+
+```powershell
+wsl --set-default AlmaLinux-9
 ```
 
 ### Step 1 — Start Hydra

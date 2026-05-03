@@ -58,17 +58,12 @@ case "${OS}" in
     BINARY_NAME="hydra"
     ;;
   MINGW*|MSYS*|CYGWIN*)
-    # Git Bash on Windows — note: Windows build does not include SQLite
-    # Use the PowerShell script (start-dev.ps1) for Windows instead,
-    # which handles the .zip format. Git Bash users can also use it via:
-    #   powershell.exe -ExecutionPolicy Bypass -File hydra/scripts/start-dev.ps1
+    # Git Bash on Windows — note: Windows build does not include SQLite.
+    # Windows developers should use WSL2 with AlmaLinux 9 instead.
     echo "WARNING: Running on Windows via Git Bash."
-    echo "The recommended approach on Windows is to use the PowerShell script:"
-    echo "  powershell.exe -ExecutionPolicy Bypass -File hydra/scripts/start-dev.ps1"
-    echo ""
-    echo "Attempting Git Bash download anyway..."
-    PLATFORM="windows_64bit"
-    BINARY_NAME="hydra.exe"
+    echo "The recommended approach on Windows is WSL2 with AlmaLinux 9."
+    echo "See the WSL2 setup section in README.md."
+    exit 1
     ;;
   *)
     echo "ERROR: Unsupported OS: ${OS}"
@@ -79,12 +74,8 @@ esac
 
 HYDRA_BINARY="${HYDRA_BIN_DIR}/${BINARY_NAME}"
 
-# Windows releases are .zip; all others are .tar.gz
-if [[ "${OS}" == MINGW* ]] || [[ "${OS}" == MSYS* ]] || [[ "${OS}" == CYGWIN* ]]; then
-  ARCHIVE_EXT="zip"
-else
-  ARCHIVE_EXT="tar.gz"
-fi
+# All platforms use .tar.gz
+ARCHIVE_EXT="tar.gz"
 
 ARCHIVE_NAME="hydra_${HYDRA_VERSION}-${PLATFORM}.${ARCHIVE_EXT}"
 DOWNLOAD_URL="https://github.com/ory/hydra/releases/download/v${HYDRA_VERSION}/${ARCHIVE_NAME}"
@@ -100,25 +91,16 @@ if [ ! -f "${HYDRA_BINARY}" ]; then
   trap 'rm -rf "${TMP_DIR}"' EXIT
 
   if command -v curl &>/dev/null; then
-    curl -fsSL "${DOWNLOAD_URL}" -o "${TMP_DIR}/${ARCHIVE_NAME}"
+    curl -fsSL -k --proxy "${https_proxy:-}" "${DOWNLOAD_URL}" -o "${TMP_DIR}/${ARCHIVE_NAME}"
   elif command -v wget &>/dev/null; then
-    wget -q "${DOWNLOAD_URL}" -O "${TMP_DIR}/${ARCHIVE_NAME}"
+    wget -q -e "https_proxy=${https_proxy:-}" "${DOWNLOAD_URL}" -O "${TMP_DIR}/${ARCHIVE_NAME}"
   else
     echo "ERROR: Neither curl nor wget found. Please install one and retry."
     exit 1
   fi
 
   echo "Extracting..."
-  if [ "${ARCHIVE_EXT}" = "zip" ]; then
-    if command -v unzip &>/dev/null; then
-      unzip -q "${TMP_DIR}/${ARCHIVE_NAME}" -d "${TMP_DIR}"
-    else
-      echo "ERROR: unzip not found. Please install unzip or use start-dev.ps1 on Windows."
-      exit 1
-    fi
-  else
-    tar -xzf "${TMP_DIR}/${ARCHIVE_NAME}" -C "${TMP_DIR}"
-  fi
+  tar -xzf "${TMP_DIR}/${ARCHIVE_NAME}" -C "${TMP_DIR}"
 
   # The binary is at the root of the archive
   cp "${TMP_DIR}/${BINARY_NAME}" "${HYDRA_BINARY}"
@@ -153,4 +135,4 @@ echo "  Config:  ${CONFIG_FILE}"
 echo "============================================================"
 echo ""
 
-"${HYDRA_BINARY}" serve all --config "${CONFIG_FILE}"
+"${HYDRA_BINARY}" serve all --dev --config "${CONFIG_FILE}"
