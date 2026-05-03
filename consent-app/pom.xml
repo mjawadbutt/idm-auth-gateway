@@ -49,15 +49,15 @@
       <artifactId>mapstruct</artifactId>
     </dependency>
 
+    <dependency>
+      <groupId>net.fbdms.idm</groupId>
+      <artifactId>mocks</artifactId>
+    </dependency>
+
     <!-- Test -->
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-test</artifactId>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>net.fbdms.idm</groupId>
-      <artifactId>mocks</artifactId>
       <scope>test</scope>
     </dependency>
   </dependencies>

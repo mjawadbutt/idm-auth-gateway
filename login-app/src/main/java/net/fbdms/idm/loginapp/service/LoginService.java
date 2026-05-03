@@ -33,8 +33,10 @@ import java.util.Map;
  * <li>Fetch challenge from Hydra</li>
  * <li>Handle skip=true (existing session) — accept immediately</li>
  * <li>Verify credentials via {@link IdentityDirectoryService}</li>
- * <li>Resolve tenant via {@link TenantSelectorService}</li>
- * <li>Trigger MFA via {@link MfaService} if required</li>
+ * <li>Resolve tenant via {@link TenantSelectorService} — show selector if
+ * multi-tenant</li>
+ * <li>Trigger MFA via {@link MfaService} if required (after tenant
+ * selection)</li>
  * <li>Accept or reject the challenge via {@link HydraAdminClient}</li>
  * <li>Emit audit event via {@link AuditService}</li>
  * </ol>
@@ -78,14 +80,13 @@ public class LoginService {
    * Processes a login form submission.
    *
    * <p>
-   * If Hydra signals {@code skip=true} the user already has an active session
-   * and the challenge must be accepted immediately without re-verifying
-   * credentials.
+   * If Hydra signals {@code skip=true} the user already has an active session and the challenge must be
+   * accepted immediately without re-verifying credentials.
    *
    * <p>
-   * Otherwise: verifies credentials, resolves tenant, triggers MFA if required,
-   * and either accepts the Hydra challenge (returning a redirect URL) or signals
-   * that further interaction is needed (tenant selection or MFA).
+   * Otherwise: verifies credentials, resolves tenant (showing selector if multi-tenant), then either
+   * accepts the challenge or signals that further interaction is needed.
+   * MFA is triggered after tenant selection, not before.
    *
    * @param request the login form submission
    * @return the outcome for the React client
@@ -119,13 +120,16 @@ public class LoginService {
     final TenantSelectionResult tenantResult = tenantSelectorService.selectTenant(
         identity.userId(), identity.tenantIds(), request.tenantId());
 
+    // Multi-tenant user with no preference — show selector first, MFA comes after.
     if (tenantResult.selectionRequired()) {
       return LoginControllerResponse.builder()
           .tenantSelectionRequired(true)
           .availableTenantIds(identity.tenantIds())
+          .mfaRequired(identity.mfaRequired())
           .build();
     }
 
+    // Single tenant (or preference already expressed) — check MFA next.
     if (identity.mfaRequired()) {
       final MfaChallenge mfaChallenge = mfaService.triggerChallenge(identity.userId());
       return LoginControllerResponse.builder()
@@ -145,11 +149,16 @@ public class LoginService {
    * screen.
    *
    * <p>
-   * The client echoes back the {@code userId} and {@code availableTenantIds} from
-   * the initial login response — no re-verification of credentials is performed.
+   * The client echoes back {@code userId}, {@code availableTenantIds}, and
+   * {@code mfaRequired} from the initial login response — no re-verification of
+   * credentials is performed.
+   *
+   * <p>
+   * If MFA is required it is triggered here, after tenant selection, as per the
+   * documented flow (step 7 follows step 6).
    *
    * @param request the tenant selection submission
-   * @return the outcome for the React client (redirect or MFA)
+   * @return the outcome for the React client (MFA challenge or redirect)
    */
   public @NotNull LoginControllerResponse processTenantSelection(
       final @NotNull TenantSelectControllerRequest request) {
@@ -157,9 +166,15 @@ public class LoginService {
     final TenantSelectionResult tenantResult = tenantSelectorService.selectTenant(
         request.userId(), request.availableTenantIds(), request.selectedTenantId());
 
-    // mfaRequired is not re-evaluated here — if MFA was needed it would have been
-    // triggered before the tenant selector was shown. If the flow reaches here,
-    // MFA either was not required or has already been completed.
+    if (request.mfaRequired()) {
+      final MfaChallenge mfaChallenge = mfaService.triggerChallenge(request.userId());
+      return LoginControllerResponse.builder()
+          .mfaRequired(true)
+          .mfaChallengeToken(mfaChallenge.challengeToken())
+          .mfaHint(mfaChallenge.hint())
+          .build();
+    }
+
     return acceptAndRedirect(
         request.loginChallenge(), request.userId(), tenantResult.tenantId(),
         extractClientId(request.loginChallenge()));
@@ -221,10 +236,8 @@ public class LoginService {
 
   // Hydra challenge tokens are opaque — client ID is fetched from the challenge
   // details.
-  // Used in paths where the challenge has already been fetched and cached by the
-  // caller,
-  // or where a second call is acceptable (audit path on tenant selection and
-  // MFA).
+  // Used in paths where a second Hydra call is acceptable (tenant selection, MFA
+  // audit path).
   private String extractClientId(final String loginChallenge) {
     try {
       return hydraAdminClient.fetchLoginRequest(loginChallenge).client().clientId();
