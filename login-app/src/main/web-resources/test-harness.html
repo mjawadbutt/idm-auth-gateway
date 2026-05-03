@@ -42,7 +42,10 @@
   <input id="authEndpoint" value="http://localhost:4444/oauth2/auth">
 
   <label>Client ID</label>
-  <input id="clientId" value="test-saas-app">
+  <select id="clientId" onchange="onClientChange()">
+    <option value="test-saas-app">test-saas-app</option>
+    <option value="idm-admin-console">idm-admin-console</option>
+  </select>
 
   <label>Redirect URI</label>
   <input id="redirectUri" value="http://localhost:8080/test-harness.html">
@@ -74,6 +77,18 @@
 </div>
 
 <script>
+  // ── Client registry ───────────────────────────────────────────────────────
+
+  const CLIENT_SECRETS = {
+    'test-saas-app':     'test-saas-app-secret',
+    'idm-admin-console': 'idm-admin-console-secret',
+  };
+
+  function onClientChange() {
+    const clientId = document.getElementById('clientId').value;
+    document.getElementById('clientSecret').value = CLIENT_SECRETS[clientId] ?? '';
+  }
+
   // ── PKCE helpers ──────────────────────────────────────────────────────────
 
   function base64url(buffer) {
@@ -107,6 +122,7 @@
 
     saveState('pkce_verifier', verifier);
     saveState('oauth_state',   state);
+    saveState('client_id',     document.getElementById('clientId').value.trim());
 
     const params = new URLSearchParams({
       response_type:         'code',
@@ -153,9 +169,17 @@
 
     saveState('auth_code', code);
 
+    //-- Restore the client_id that was used to start this flow into the dropdown
+    const savedClientId = loadState('client_id');
+    if (savedClientId) {
+      document.getElementById('clientId').value = savedClientId;
+      onClientChange();
+    }
+
     result.className = 'result success';
     result.innerHTML = '<div class="kv">'
       + '<span class="k">Status</span><span class="v">✅ Authorization code received</span>'
+      + '<span class="k">Client ID</span><span class="v">' + (savedClientId ?? '?') + '</span>'
       + '<span class="k">Code</span><span class="v">' + code + '</span>'
       + '<span class="k">State</span><span class="v">' + state + '</span>'
       + '</div>';
@@ -179,7 +203,6 @@
       grant_type:    'authorization_code',
       code,
       redirect_uri:  document.getElementById('redirectUri').value.trim(),
-      client_id:     document.getElementById('clientId').value.trim(),
       code_verifier: verifier,
     });
 

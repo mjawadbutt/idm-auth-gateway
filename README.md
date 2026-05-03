@@ -224,7 +224,7 @@ curl http://localhost:4445/health/ready
 Run via the IntelliJ run configuration **LoginAppApplication**, or from the command line:
 
 ```bash
-mvn spring-boot:run -pl login-app -Dspring-boot.run.arguments="--spring.profiles.active=winLocal"
+mvn spring-boot:run -pl login-app -am -Dspring-boot.run.profiles=winLocal
 ```
 
 ### Step 5 — Start Consent App
@@ -232,23 +232,30 @@ mvn spring-boot:run -pl login-app -Dspring-boot.run.arguments="--spring.profiles
 Run via the IntelliJ run configuration **ConsentAppApplication**, or from the command line:
 
 ```bash
-mvn spring-boot:run -pl consent-app -Dspring-boot.run.arguments="--spring.profiles.active=winLocal"
+mvn spring-boot:run -pl consent-app -am -Dspring-boot.run.profiles=winLocal
 ```
 
-### Step 6 — Start React Dev Server (coming soon)
+### Step 6 — Test the Full Flow
 
-```bash
-cd login-app/frontend
-npm install
-npm run dev
+Navigate to the test harness in your browser:
+
 ```
+http://localhost:8080/test-harness.html
+```
+
+Click **Start Login Flow**. Test users:
+
+| Username | Password   | Tenants                        | MFA            |
+| -------- | ---------- | ------------------------------ | -------------- |
+| `alice`  | `password` | `tenant-acme`, `tenant-globex` | No             |
+| `bob`    | `password` | `tenant-acme`                  | Yes (any code) |
 
 ## Dev OAuth2 Clients
 
-| Client ID           | Purpose                         | Redirect URI                     |
-| ------------------- | ------------------------------- | -------------------------------- |
-| `test-saas-app`     | Simulates a downstream SaaS app | `http://localhost:9000/callback` |
-| `idm-admin-console` | IDM-4 Admin Console             | `http://localhost:4000/callback` |
+| Client ID           | Purpose                         | Redirect URIs                                                               |
+| ------------------- | ------------------------------- | --------------------------------------------------------------------------- |
+| `test-saas-app`     | Simulates a downstream SaaS app | `http://localhost:9000/callback`, `http://localhost:8080/test-harness.html` |
+| `idm-admin-console` | IDM-4 Admin Console             | `http://localhost:4000/callback`                                            |
 
 ## Ports
 
