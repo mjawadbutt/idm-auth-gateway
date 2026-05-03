@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>IDM Auth Gateway — Test Harness</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 640px; margin: 60px auto; padding: 0 20px; color: #333; }
+    h1 { font-size: 1.4rem; margin-bottom: 4px; }
+    .subtitle { color: #666; font-size: 0.9rem; margin-bottom: 32px; }
+    .card { border: 1px solid #ddd; border-radius: 8px; padding: 20px 24px; margin-bottom: 20px; }
+    .card h2 { font-size: 1rem; margin: 0 0 16px; }
+    label { display: block; font-size: 0.85rem; color: #555; margin-bottom: 4px; }
+    input, select { width: 100%; box-sizing: border-box; padding: 7px 10px; border: 1px solid #ccc; border-radius: 5px; font-size: 0.9rem; margin-bottom: 12px; }
+    button { padding: 9px 20px; border: none; border-radius: 5px; cursor: pointer; font-size: 0.9rem; }
+    .btn-primary { background: #0d6efd; color: #fff; }
+    .btn-primary:hover { background: #0b5ed7; }
+    .btn-secondary { background: #6c757d; color: #fff; }
+    .btn-secondary:hover { background: #5c636a; }
+    .result { background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 5px; padding: 14px; font-size: 0.82rem; word-break: break-all; white-space: pre-wrap; }
+    .success { border-color: #198754; background: #d1e7dd; color: #0a3622; }
+    .error   { border-color: #dc3545; background: #f8d7da; color: #58151c; }
+    .hidden  { display: none; }
+    .row { display: flex; gap: 10px; }
+    .row button { flex: 1; }
+    hr { border: none; border-top: 1px solid #eee; margin: 24px 0; }
+    .kv { display: grid; grid-template-columns: 140px 1fr; gap: 4px 12px; font-size: 0.82rem; }
+    .kv .k { color: #555; font-weight: 500; }
+    .kv .v { word-break: break-all; }
+  </style>
+</head>
+<body>
+
+<h1>IDM Auth Gateway</h1>
+<p class="subtitle">Test harness — simulates a relying-party SaaS app initiating an OAuth2 login flow</p>
+
+<!-- ── Config ─────────────────────────────────────────────────────────────── -->
+<div class="card">
+  <h2>Flow Configuration</h2>
+
+  <label>Hydra Authorization Endpoint</label>
+  <input id="authEndpoint" value="http://localhost:4444/oauth2/auth">
+
+  <label>Client ID</label>
+  <input id="clientId" value="test-saas-app">
+
+  <label>Redirect URI</label>
+  <input id="redirectUri" value="http://localhost:8080/test-harness.html">
+
+  <label>Scope</label>
+  <input id="scope" value="openid offline_access">
+
+  <label>Client Secret <span style="color:#999;font-weight:400">(for token exchange)</span></label>
+  <input id="clientSecret" value="test-saas-app-secret" type="password">
+
+  <div class="row">
+    <button class="btn-primary" onclick="startFlow()">▶ Start Login Flow</button>
+    <button class="btn-secondary" onclick="clearState()">✕ Clear State</button>
+  </div>
+</div>
+
+<!-- ── Callback result ────────────────────────────────────────────────────── -->
+<div id="callbackSection" class="card hidden">
+  <h2>Callback Result</h2>
+  <div id="callbackResult"></div>
+  <hr>
+  <button class="btn-primary" style="margin-top:4px" onclick="exchangeCode()">Exchange Code for Tokens</button>
+</div>
+
+<!-- ── Token result ───────────────────────────────────────────────────────── -->
+<div id="tokenSection" class="card hidden">
+  <h2>Token Response</h2>
+  <div id="tokenResult"></div>
+</div>
+
+<script>
+  // ── PKCE helpers ──────────────────────────────────────────────────────────
+
+  function base64url(buffer) {
+    return btoa(String.fromCharCode(...new Uint8Array(buffer)))
+      .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  }
+
+  async function generatePkce() {
+    const verifier = base64url(crypto.getRandomValues(new Uint8Array(32)));
+    const digest   = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier));
+    const challenge = base64url(digest);
+    return { verifier, challenge };
+  }
+
+  // ── State helpers ─────────────────────────────────────────────────────────
+
+  function saveState(key, value) { sessionStorage.setItem(key, value); }
+  function loadState(key)        { return sessionStorage.getItem(key); }
+
+  function clearState() {
+    sessionStorage.clear();
+    document.getElementById('callbackSection').classList.add('hidden');
+    document.getElementById('tokenSection').classList.add('hidden');
+  }
+
+  // ── Start flow ────────────────────────────────────────────────────────────
+
+  async function startFlow() {
+    const { verifier, challenge } = await generatePkce();
+    const state = base64url(crypto.getRandomValues(new Uint8Array(16)));
+
+    saveState('pkce_verifier', verifier);
+    saveState('oauth_state',   state);
+
+    const params = new URLSearchParams({
+      response_type:         'code',
+      client_id:             document.getElementById('clientId').value.trim(),
+      redirect_uri:          document.getElementById('redirectUri').value.trim(),
+      scope:                 document.getElementById('scope').value.trim(),
+      state,
+      code_challenge:        challenge,
+      code_challenge_method: 'S256',
+    });
+
+    window.location.href = document.getElementById('authEndpoint').value.trim() + '?' + params;
+  }
+
+  // ── Handle callback ───────────────────────────────────────────────────────
+
+  function handleCallback() {
+    const params = new URLSearchParams(window.location.search);
+    const code   = params.get('code');
+    const state  = params.get('state');
+    const error  = params.get('error');
+
+    if (!code && !error) return;
+
+    const section = document.getElementById('callbackSection');
+    const result  = document.getElementById('callbackResult');
+    section.classList.remove('hidden');
+
+    //-- Clean the URL so a refresh doesn't re-process the callback
+    window.history.replaceState({}, '', window.location.pathname);
+
+    if (error) {
+      result.className = 'result error';
+      result.textContent = 'Error: ' + error + '\n' + (params.get('error_description') ?? '');
+      return;
+    }
+
+    const savedState = loadState('oauth_state');
+    if (state !== savedState) {
+      result.className = 'result error';
+      result.textContent = 'State mismatch — possible CSRF.\nExpected: ' + savedState + '\nReceived: ' + state;
+      return;
+    }
+
+    saveState('auth_code', code);
+
+    result.className = 'result success';
+    result.innerHTML = '<div class="kv">'
+      + '<span class="k">Status</span><span class="v">✅ Authorization code received</span>'
+      + '<span class="k">Code</span><span class="v">' + code + '</span>'
+      + '<span class="k">State</span><span class="v">' + state + '</span>'
+      + '</div>';
+  }
+
+  // ── Exchange code ─────────────────────────────────────────────────────────
+
+  async function exchangeCode() {
+    const code     = loadState('auth_code');
+    const verifier = loadState('pkce_verifier');
+
+    if (!code || !verifier) {
+      alert('No code or verifier in session — start a new flow.');
+      return;
+    }
+
+    const tokenEndpoint = document.getElementById('authEndpoint').value
+      .replace('/oauth2/auth', '/oauth2/token');
+
+    const body = new URLSearchParams({
+      grant_type:    'authorization_code',
+      code,
+      redirect_uri:  document.getElementById('redirectUri').value.trim(),
+      client_id:     document.getElementById('clientId').value.trim(),
+      code_verifier: verifier,
+    });
+
+    const clientId     = document.getElementById('clientId').value.trim();
+    const clientSecret = document.getElementById('clientSecret').value.trim();
+    const headers      = { 'Content-Type': 'application/x-www-form-urlencoded' };
+    if (clientSecret) {
+      headers['Authorization'] = 'Basic ' + btoa(clientId + ':' + clientSecret);
+    }
+
+    const section = document.getElementById('tokenSection');
+    const result  = document.getElementById('tokenResult');
+    section.classList.remove('hidden');
+    result.className = 'result';
+    result.textContent = 'Exchanging…';
+
+    try {
+      const resp = await fetch(tokenEndpoint, {
+        method:  'POST',
+        headers,
+        body,
+      });
+      const json = await resp.json();
+
+      if (!resp.ok) {
+        result.className = 'result error';
+        result.textContent = JSON.stringify(json, null, 2);
+        return;
+      }
+
+      //-- Decode the ID token payload for display (no verification — dev only)
+      let idTokenClaims = null;
+      if (json.id_token) {
+        try {
+          const payload = json.id_token.split('.')[1];
+          idTokenClaims = JSON.parse(atob(payload.replace(/-/g,'+').replace(/_/g,'/')));
+        } catch (_) {}
+      }
+
+      result.className = 'result success';
+      result.innerHTML = '<div class="kv">'
+        + '<span class="k">Status</span><span class="v">✅ Tokens received</span>'
+        + '<span class="k">access_token</span><span class="v">' + (json.access_token ?? '—') + '</span>'
+        + '<span class="k">token_type</span><span class="v">' + (json.token_type ?? '—') + '</span>'
+        + '<span class="k">expires_in</span><span class="v">' + (json.expires_in ?? '—') + 's</span>'
+        + '<span class="k">scope</span><span class="v">' + (json.scope ?? '—') + '</span>'
+        + (json.refresh_token ? '<span class="k">refresh_token</span><span class="v">' + json.refresh_token + '</span>' : '')
+        + '</div>'
+        + (idTokenClaims ? '<hr><strong style="font-size:0.82rem">ID Token Claims</strong><pre style="margin:8px 0 0;font-size:0.78rem">'
+            + JSON.stringify(idTokenClaims, null, 2) + '</pre>' : '');
+
+    } catch (err) {
+      result.className = 'result error';
+      result.textContent = 'Fetch failed: ' + err.message
+        + '\n\nNote: token exchange requires CORS to be enabled on Hydra\'s public endpoint,\nor use a server-side proxy.';
+    }
+  }
+
+  // ── On load ───────────────────────────────────────────────────────────────
+  handleCallback();
+</script>
+
+</body>
+</html>
