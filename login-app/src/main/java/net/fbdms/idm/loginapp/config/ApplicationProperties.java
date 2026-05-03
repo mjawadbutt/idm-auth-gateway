@@ -32,8 +32,8 @@ public class ApplicationProperties {
   @NotNull
   private final Integer serverHttpPort;
 
-  // Used to create application-context specific dirs or file name prefixes.
-  // Defaults to Maven artifact ID via @project.artifactId@ filter.
+  //-- Used to create application-context specific dirs or file name prefixes.
+  //-- Defaults to Maven artifact ID via @project.artifactId@ filter.
   @NotBlank
   private final String dirOrFileName;
 
@@ -126,8 +126,6 @@ public class ApplicationProperties {
     return loggingConfig;
   }
 
-  // -------------------------------------------------------------------------
-
   public static class HydraConfig {
 
     @NotBlank
@@ -141,8 +139,6 @@ public class ApplicationProperties {
       return adminUrl;
     }
   }
-
-  // -------------------------------------------------------------------------
 
   public static class LoggingConfig {
 
@@ -203,8 +199,6 @@ public class ApplicationProperties {
       return stacktraceLogFilePath;
     }
   }
-
-  // -------------------------------------------------------------------------
 
   public static class MicroMeterConfig {
 

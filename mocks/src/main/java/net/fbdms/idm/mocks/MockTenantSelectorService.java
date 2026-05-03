@@ -42,7 +42,7 @@ public class MockTenantSelectorService implements TenantSelectorService {
           .build();
     }
 
-    // Multi-tenant user with no preference expressed — selection required
+    //-- Multi-tenant user with no preference expressed — selection required
     return TenantSelectionResult.builder()
         .tenantId(tenantIds.get(0))
         .selectionRequired(true)

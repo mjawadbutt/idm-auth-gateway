@@ -84,21 +84,21 @@ public class ConsentService {
     final String clientId = hydraConsentRequest.client().clientId();
     final String subject = hydraConsentRequest.subject();
 
-    // skip=true means the user previously granted consent — accept immediately.
+    //-- skip=true means the user previously granted consent — accept immediately.
     if (hydraConsentRequest.skip()) {
       LOGGER.debug("Hydra skip=true for consent challenge={}, accepting immediately", consentChallenge);
       return acceptWithEmptySession(consentChallenge, hydraConsentRequest, subject, clientId);
     }
 
     if (!firstPartyClientRegistry.isFirstParty(clientId)) {
-      // Third-party client — consent UI required (future implementation).
+      //-- Third-party client — consent UI required (future implementation).
       LOGGER.debug("Third-party client={}, consent UI required", clientId);
       return ConsentControllerResponse.builder()
           .consentUiRequired(true)
           .build();
     }
 
-    // First-party client — resolve tenant context and auto-accept.
+    //-- First-party client — resolve tenant context and auto-accept.
     final String tenantId = extractTenantId(hydraConsentRequest);
     if (tenantId == null) {
       LOGGER.warn("No tenant_id in consent context for subject={} client={}", subject, clientId);
@@ -121,8 +121,6 @@ public class ConsentService {
     auditService.recordLoginSuccess(subject, tenantId, clientId);
     return response;
   }
-
-  // -------------------------------------------------------------------------
 
   private ConsentControllerResponse acceptWithClaims(
       final String consentChallenge,
@@ -181,9 +179,8 @@ public class ConsentService {
         new HydraConsentRejectRequest(error, errorDescription));
   }
 
-  // The tenant_id is injected into the Hydra login session context by the Login
-  // App.
-  // It arrives here as part of the consent challenge's context field.
+  //-- The tenant_id is injected into the Hydra login session context by the LoginApp.
+  //-- It arrives here as part of the consent challenge's context field.
   private String extractTenantId(final HydraConsentRequest hydraConsentRequest) {
     final Object context = hydraConsentRequest.context();
     if (context instanceof Map<?, ?> contextMap) {

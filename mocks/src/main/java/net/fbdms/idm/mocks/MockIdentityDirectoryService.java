@@ -16,7 +16,7 @@ import java.util.Map;
  */
 public class MockIdentityDirectoryService implements IdentityDirectoryService {
 
-  // username -> password (plaintext — dev only)
+  //-- username -> password (plaintext — dev only)
   private static final Map<String, String> USERS = Map.of(
       "alice", "password",
       "bob", "password");

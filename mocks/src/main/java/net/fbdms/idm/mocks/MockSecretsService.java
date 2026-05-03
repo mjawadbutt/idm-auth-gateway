@@ -16,12 +16,12 @@ public class MockSecretsService implements SecretsService {
     if (envValue != null && !envValue.isBlank()) {
       return envValue;
     }
-    // Return a safe dev default so the app starts without any env setup
+    //-- Return a safe dev default so the app starts without any env setup
     return "dev-secret-for-" + key;
   }
 
   @Override
   public void putSecret(final @NotNull String key, final @NotNull String value) {
-    // no-op — environment variables cannot be set programmatically at runtime
+    //-- no-op — environment variables cannot be set programmatically at runtime
   }
 }

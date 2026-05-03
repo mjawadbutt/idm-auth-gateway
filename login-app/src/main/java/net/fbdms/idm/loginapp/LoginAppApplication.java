@@ -52,14 +52,13 @@ public class LoginAppApplication {
     LOGGER.debug("{}", getApplicationRuntimeInfo());
     LOGGER.debug("APPLICATION PROPERTIES ARE AS FOLLOWS:");
     LOGGER.debug("{}", getApplicationProperties());
-    // TODO: Add support for tempDir, instanceid etc
+    //-- TODO: Add support for tempDir, instanceid etc
     LOGGER.info("Application-context initialization completed successfully!");
   }
 
   @PreDestroy
   public void preDestroy() {
     LOGGER.info("Shutting down the application server.");
-    // stopHsqlServer();
     LOGGER.info("Successfully shut down the application server.");
   }
 

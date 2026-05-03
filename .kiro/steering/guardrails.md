@@ -22,7 +22,7 @@ list and comments make that awkward.
 ## Response Style
 
 - Do not generate documentation, docstrings, README sections, or usage examples unless explicitly requested.
-- Add inline comments only on non-obvious logic.
+- **Add inline comments only on non-obvious logic.** Use `//--` style for inline comments, not `//`.
 - When multiple implementation options exist, pick the most explicit and maintainable one and briefly state why.
 - Do not refactor code beyond the scope of the request.
 - Use a direct tone — no hand-holding or over-explanation.
@@ -37,6 +37,8 @@ list and comments make that awkward.
 - **Immutability and type-safety.** Always prefer immutable types and strong typing unless infeasible or in conflict
   with another guideline. Apply `final` to parameters. Apply `@NotNull` unless the value is genuinely nullable.
 - **Expert pattern.** Place methods on the class that owns the data they operate on.
+- **Always use getters to access class data members** — never access fields directly from outside the owning class
+  unless there is a specific reason (e.g. within the same class, or a record accessor).
 - **No method overloading.** Use distinct, descriptive method names instead.
 - **Prefer verbose and readable code over concise code.** Line count is not a metric.
 - **Consistency.** Follow existing patterns in the codebase unless doing so violates another guideline here.

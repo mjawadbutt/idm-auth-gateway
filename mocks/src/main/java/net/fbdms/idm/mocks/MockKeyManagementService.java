@@ -15,7 +15,7 @@ public class MockKeyManagementService implements KeyManagementService {
 
   @Override
   public byte @NotNull [] sign(final byte @NotNull [] payload) {
-    // Trivial XOR-based mock signature — not cryptographically meaningful
+    //-- Trivial XOR-based mock signature — not cryptographically meaningful
     final byte[] signature = new byte[DEV_KEY.length];
     for (int i = 0; i < DEV_KEY.length; i++) {
       signature[i] = (byte) (DEV_KEY[i] ^ payload[i % payload.length]);
@@ -25,6 +25,6 @@ public class MockKeyManagementService implements KeyManagementService {
 
   @Override
   public void rotateSigningKey() {
-    // no-op in dev
+    //-- no-op in dev
   }
 }
