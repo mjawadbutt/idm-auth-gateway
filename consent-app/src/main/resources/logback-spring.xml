@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration scan="true" scanPeriod="60 seconds">
+  <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
+
+  <springProperty scope="local" name="application.loggingConfig.rootDir"
+                  source="application.loggingConfig.rootDir"/>
+  <springProperty scope="local" name="application.loggingConfig.mainLogFileName"
+                  source="application.loggingConfig.mainLogFileName"/>
+  <springProperty scope="local" name="application.loggingConfig.mainLogFilePath"
+                  source="application.loggingConfig.mainLogFilePath"/>
+  <springProperty scope="local" name="application.loggingConfig.stacktraceLogFileName"
+                  source="application.loggingConfig.stacktraceLogFileName"/>
+  <springProperty scope="local" name="application.loggingConfig.stacktraceLogFilePath"
+                  source="application.loggingConfig.stacktraceLogFilePath"/>
+
+  <appender name="defaultConsoleAppender" class="ch.qos.logback.core.ConsoleAppender">
+    <immediateFlush>true</immediateFlush>
+    <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
+      <pattern>[[%date{"yyyy-MM-dd'T'HH:mm:ss,SSSXXX"}] [%highlight(%-5level)] %message]%n</pattern>
+    </encoder>
+  </appender>
+
+  <appender name="defaultAsyncConsoleAppender" class="ch.qos.logback.classic.AsyncAppender">
+    <appender-ref ref="defaultConsoleAppender"/>
+    <queueSize>512</queueSize>
+    <discardingThreshold>0</discardingThreshold>
+  </appender>
+
+  <appender name="defaultMainLogFileAppender" class="ch.qos.logback.core.rolling.RollingFileAppender">
+    <file>${application.loggingConfig.mainLogFilePath}</file>
+    <immediateFlush>true</immediateFlush>
+    <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
+      <!--
+        The first two characters [[ are relied upon by filebeat for multiline detection.
+        Do not change without updating the corresponding filebeat config.
+      -->
+      <pattern>[[%date{"yyyy-MM-dd'T'HH:mm:ss,SSSXXX"}] [%highlight(%-5level)] [%logger{48}] [%thread] %message]%n</pattern>
+    </encoder>
+    <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+      <fileNamePattern>
+        ${application.loggingConfig.rootDir}/archive/${application.loggingConfig.mainLogFileName}.%d{yyyy-MM}-%i.log
+      </fileNamePattern>
+      <maxFileSize>32MB</maxFileSize>
+      <maxHistory>1</maxHistory>
+      <totalSizeCap>512MB</totalSizeCap>
+      <cleanHistoryOnStart>true</cleanHistoryOnStart>
+    </rollingPolicy>
+  </appender>
+
+  <appender name="defaultAsyncMainLogFileAppender" class="ch.qos.logback.classic.AsyncAppender">
+    <appender-ref ref="defaultMainLogFileAppender"/>
+    <queueSize>512</queueSize>
+    <discardingThreshold>0</discardingThreshold>
+  </appender>
+
+  <appender name="stacktraceLogFileAppender" class="ch.qos.logback.core.rolling.RollingFileAppender">
+    <file>${application.loggingConfig.stacktraceLogFilePath}</file>
+    <immediateFlush>true</immediateFlush>
+    <filter class="ch.qos.logback.core.filter.EvaluatorFilter">
+      <evaluator class="net.fbdms.iws.xwscommonlib.util.logging.logback.LogbackExceptionEventFilter"/>
+      <OnMatch>ACCEPT</OnMatch>
+      <OnMismatch>DENY</OnMismatch>
+    </filter>
+    <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
+      <pattern>[[%date{"yyyy-MM-dd'T'HH:mm:ss,SSSXXX"}] [%-5level] %message]%n</pattern>
+    </encoder>
+    <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+      <fileNamePattern>
+        ${application.loggingConfig.rootDir}/archive/${application.loggingConfig.stacktraceLogFileName}.%d{yyyy-MM}-%i.log
+      </fileNamePattern>
+      <maxFileSize>32MB</maxFileSize>
+      <maxHistory>1</maxHistory>
+      <totalSizeCap>256MB</totalSizeCap>
+      <cleanHistoryOnStart>true</cleanHistoryOnStart>
+    </rollingPolicy>
+  </appender>
+
+  <appender name="asyncStacktraceLogFileAppender" class="ch.qos.logback.classic.AsyncAppender">
+    <appender-ref ref="stacktraceLogFileAppender"/>
+    <queueSize>512</queueSize>
+    <discardingThreshold>0</discardingThreshold>
+  </appender>
+
+  <root level="INFO">
+    <appender-ref ref="defaultAsyncConsoleAppender"/>
+    <appender-ref ref="defaultAsyncMainLogFileAppender"/>
+    <appender-ref ref="asyncStacktraceLogFileAppender"/>
+  </root>
+
+</configuration>

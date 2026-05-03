@@ -5,7 +5,7 @@
   <modelVersion>4.0.0</modelVersion>
 
   <parent>
-    <groupId>com.fbdms.idm</groupId>
+    <groupId>net.fbdms.idm</groupId>
     <artifactId>idm-auth-gateway</artifactId>
     <version>0.0.1-SNAPSHOT</version>
   </parent>
@@ -17,8 +17,13 @@
 
   <dependencies>
     <dependency>
-      <groupId>com.fbdms.idm</groupId>
+      <groupId>net.fbdms.idm</groupId>
       <artifactId>idm-common</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>net.fbdms.iws</groupId>
+      <artifactId>xws-common-lib</artifactId>
     </dependency>
 
     <dependency>
@@ -54,7 +59,7 @@
       <scope>test</scope>
     </dependency>
     <dependency>
-      <groupId>com.fbdms.idm</groupId>
+      <groupId>net.fbdms.idm</groupId>
       <artifactId>mocks</artifactId>
       <scope>test</scope>
     </dependency>

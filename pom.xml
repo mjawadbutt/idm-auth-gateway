@@ -4,7 +4,7 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
 
-  <groupId>com.fbdms.idm</groupId>
+  <groupId>net.fbdms.idm</groupId>
   <artifactId>idm-auth-gateway</artifactId>
   <version>0.0.1-SNAPSHOT</version>
   <packaging>pom</packaging>
@@ -55,14 +55,21 @@
 
       <!-- Internal modules -->
       <dependency>
-        <groupId>com.fbdms.idm</groupId>
+        <groupId>net.fbdms.idm</groupId>
         <artifactId>idm-common</artifactId>
         <version>${project.version}</version>
       </dependency>
       <dependency>
-        <groupId>com.fbdms.idm</groupId>
+        <groupId>net.fbdms.idm</groupId>
         <artifactId>mocks</artifactId>
         <version>${project.version}</version>
+      </dependency>
+
+      <!-- xws-common-lib -->
+      <dependency>
+        <groupId>net.fbdms.iws</groupId>
+        <artifactId>xws-common-lib</artifactId>
+        <version>0.0.1-SNAPSHOT</version>
       </dependency>
 
       <!-- Jakarta Validation -->

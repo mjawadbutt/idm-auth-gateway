@@ -9,10 +9,13 @@ enterprise best practices. Do not explain fundamentals unless explicitly asked.
 
 ## Tooling
 
-Prefer Bash/Powershell/Cmd commands (Read/Write/Edit/Glob/Grep, etc) over tool usage WHENEVER possible — The user
-reviews diffs via git and IDE local history, not the tool output. Use Write/Edit only when a targeted in-place patch is
-cleaner than a shell command. Batch multi-file writes into one Bash call. Main objective of this one is to minimize
-token usage.
+For file manipulation (reading, writing, searching, editing), prefer dedicated Kiro tools over shell commands — they
+give the user better visibility via git diff and IDE local history. Use shell commands only for operations that
+genuinely require execution (build, run, copy across paths, etc.). Batch multi-file writes into one shell call where
+possible. Main objective: minimize token usage.
+
+Do not include inline comments (`#`) inside shell command bodies — the user may need to copy the command into a trust
+list and comments make that awkward.
 
 ---
 
@@ -28,11 +31,8 @@ token usage.
 
 ## Code Style
 
-- **Use 2-space indentation** for all languages. Never use tabs or 4-space indents. This applies to all generated code
-  regardless of language. Code will be read and maintained by humans. Prioritize readability, clarity, and explicitness
-  over cleverness or brevity.
-- **Use 2-space indentation** for all languages. Never use tabs or 4-space indents. This applies to all generated code
-  regardless of language.
+- **Use 2-space indentation** for all languages. Never use tabs or 4-space indents. Prioritize readability, clarity, and
+  explicitness over cleverness or brevity.
 - **High cohesion, low coupling.** Each class and function has one clear responsibility.
 - **Immutability and type-safety.** Always prefer immutable types and strong typing unless infeasible or in conflict
   with another guideline. Apply `final` to parameters. Apply `@NotNull` unless the value is genuinely nullable.
@@ -41,6 +41,8 @@ token usage.
 - **Prefer verbose and readable code over concise code.** Line count is not a metric.
 - **Consistency.** Follow existing patterns in the codebase unless doing so violates another guideline here.
 - **Do not remove commented-out code or comments** unless explicitly asked to do so.
+- **Do not alter the wording, formatting, or structure of existing comments** unless explicitly asked to do so. This
+  applies to all file types including `.properties`, `.xml`, `.java`, etc.
 - **Use `jakarta.validation.constraints.NotNull`** (not `org.springframework.lang.NonNull`) for null-safety annotations.
 - **Do not use `@Autowired`** on constructors in main application code — Spring injects single-constructor beans
   automatically. Only use `@Autowired` where required (e.g. JUnit 5 Spring context test classes).
