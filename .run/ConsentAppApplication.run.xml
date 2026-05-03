@@ -1,8 +1,10 @@
 <component name="ProjectRunConfigurationManager">
   <configuration default="false" name="ConsentAppApplication" type="Application" factoryName="Application" nameIsGenerated="true">
     <option name="MAIN_CLASS_NAME" value="net.fbdms.idm.consentapp.ConsentAppApplication" />
-    <option name="PROGRAM_PARAMETERS" value="--spring.profiles.active=winLocal" />
     <module name="consent-app" />
+    <option name="PROGRAM_PARAMETERS" value="--spring.profiles.active=winLocal" />
+    <option name="VM_PARAMETERS" value="-Dhttp.nonProxyHosts=localhost|127.0.0.1" />
+    <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/consent-app" />
     <extension name="coverage">
       <pattern>
         <option name="PATTERN" value="net.fbdms.idm.consentapp.*" />

@@ -41,3 +41,4 @@ spring-shell.log
 # Environment overrides (never commit secrets)
 .env
 .env.local
+/consent-app/target-consent-app/

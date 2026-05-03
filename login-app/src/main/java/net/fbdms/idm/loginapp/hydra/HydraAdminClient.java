@@ -7,6 +7,7 @@ import net.fbdms.idm.loginapp.hydra.model.HydraLoginRequest;
 import net.fbdms.idm.loginapp.hydra.model.HydraRedirectResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
@@ -75,6 +76,7 @@ public class HydraAdminClient {
             .path(LOGIN_ACCEPT_PATH)
             .queryParam(CHALLENGE_PARAM, loginChallenge)
             .build())
+        .contentType(MediaType.APPLICATION_JSON)
         .body(acceptRequest)
         .retrieve()
         .body(HydraRedirectResponse.class);
@@ -97,6 +99,7 @@ public class HydraAdminClient {
             .path(LOGIN_REJECT_PATH)
             .queryParam(CHALLENGE_PARAM, loginChallenge)
             .build())
+        .contentType(MediaType.APPLICATION_JSON)
         .body(rejectRequest)
         .retrieve()
         .body(HydraRedirectResponse.class);

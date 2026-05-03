@@ -7,6 +7,7 @@ import net.fbdms.idm.consentapp.hydra.model.HydraConsentRequest;
 import net.fbdms.idm.consentapp.hydra.model.HydraRedirectResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
@@ -76,6 +77,7 @@ public class HydraAdminClient {
             .path(CONSENT_ACCEPT_PATH)
             .queryParam(CHALLENGE_PARAM, consentChallenge)
             .build())
+        .contentType(MediaType.APPLICATION_JSON)
         .body(acceptRequest)
         .retrieve()
         .body(HydraRedirectResponse.class);
@@ -98,6 +100,7 @@ public class HydraAdminClient {
             .path(CONSENT_REJECT_PATH)
             .queryParam(CHALLENGE_PARAM, consentChallenge)
             .build())
+        .contentType(MediaType.APPLICATION_JSON)
         .body(rejectRequest)
         .retrieve()
         .body(HydraRedirectResponse.class);

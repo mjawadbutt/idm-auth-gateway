@@ -257,7 +257,7 @@ npm run dev
 | Hydra Public     | 4444 |
 | Hydra Admin      | 4445 |
 | Login App        | 8080 |
-| Consent App      | 8081 |
+| Consent App      | 8082 |
 | React Dev Server | 3000 |
 
 ## Documentation
