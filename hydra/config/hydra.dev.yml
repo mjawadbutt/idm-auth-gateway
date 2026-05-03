@@ -28,10 +28,10 @@ serve:
 urls:
   self:
     issuer: http://localhost:4444
-  login: http://localhost:8080/login
-  consent: http://localhost:8080/consent
-  logout: http://localhost:8080/logout
-  error: http://localhost:8080/error
+  login: http://localhost:8080/idm-auth-gateway/login
+  consent: http://localhost:8081/idm-auth-gateway/consent
+  logout: http://localhost:8080/idm-auth-gateway/logout
+  error: http://localhost:8080/idm-auth-gateway/error
 
 secrets:
   system:
