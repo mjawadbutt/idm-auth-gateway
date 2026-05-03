@@ -8,6 +8,10 @@ This PoC demonstrates:
 - **Ory Hydra as the token engine** — OpenID Certified, OAuth2.1 compliant, headless by design
 - **Authorization code flow with PKCE end-to-end** — from browser through Login App and Consent App to token issuance
 - **Both OIDC and OAuth2** — include `openid` in scope for an ID token + access token; omit it for access token only
+- **Vendor lock-in avoidance by design** — all external dependencies (identity store, MFA, KMS, secrets) are abstracted
+  behind interfaces in `idm-common`. Provider implementations are wired at startup via Spring profiles. Switching
+  providers — identity directory, MFA method, or secrets backend — is a configuration and implementation concern, not an
+  architectural one. No application code changes required.
 
 ---
 
