@@ -24,6 +24,7 @@
     <dependency>
       <groupId>net.fbdms.iws</groupId>
       <artifactId>xws-common-lib</artifactId>
+      <version>0.0.1-SNAPSHOT</version>
     </dependency>
 
     <dependency>

@@ -3,11 +3,18 @@ package net.fbdms.idm.loginapp.config;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
+import net.fbdms.iws.xwscommonlib.util.ApplicationBuildInfo;
+import net.fbdms.iws.xwscommonlib.util.ApplicationRuntimeInfo;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.bind.ConstructorBinding;
+import org.springframework.context.annotation.Bean;
+import org.springframework.core.env.Environment;
 import org.springframework.validation.annotation.Validated;
 
 import java.nio.file.Path;
+import java.util.Arrays;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * Typed binding for all {@code application.*} properties.
@@ -67,6 +74,20 @@ public class ApplicationProperties {
     this.hydraConfig = hydraConfig;
     this.microMeterConfig = microMeterConfig;
     this.loggingConfig = loggingConfig;
+  }
+
+  @Bean
+  public ApplicationBuildInfo applicationBuildInfo() {
+    return ApplicationBuildInfo.load(
+            "classpath:/META-INF/build-info.properties", null);
+  }
+
+  @Bean
+  public ApplicationRuntimeInfo applicationRuntimeInfo(Environment environment) {
+    Set<String> activeProfiles = Arrays.stream(environment.getActiveProfiles())
+            .map(String::trim)
+            .collect(Collectors.toSet());
+    return ApplicationRuntimeInfo.create(activeProfiles);
   }
 
   public String getEnvironmentId() {
