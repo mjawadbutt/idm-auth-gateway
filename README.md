@@ -1,275 +1,262 @@
 # idm-auth-gateway
 
-OAuth2 / OIDC authentication gateway for the FBDMS Digital Experience Suite. The entry point to all products in the
-suite. Built on [Ory Hydra](https://github.com/ory/hydra) with a Spring Boot Login App and Consent App.
+OAuth2 / OIDC authentication gateway for the FBDMS Digital Experience Suite. Built on
+[Ory Hydra](https://github.com/ory/hydra) with a Spring Boot Login App and Consent App.
+
+---
 
 ## Repository Structure
 
 ```
 idm-auth-gateway/
-│
-├── hydra/                              # Hydra binary config, dev scripts, client definitions
+├── hydra/
 │   ├── bin/                            # Downloaded Hydra binaries (git-ignored, auto-downloaded)
 │   ├── config/
-│   │   ├── hydra.dev.yml               # Local dev config — SQLite, ports 4444/4445, dev secrets
-│   │   └── hydra.prod.yml              # Production config template — PostgreSQL, KMS, env var secrets
+│   │   ├── hydra.dev.yml               # Local dev config — SQLite, ports 4444/4445
+│   │   └── hydra.prod.yml              # Production config template
 │   ├── clients/
-│   │   └── dev-clients.json            # OAuth2 client definitions registered for local dev
+│   │   └── dev-clients.json            # OAuth2 client definitions for local dev
 │   └── scripts/
-│       ├── start-dev.sh                # macOS / Linux / WSL2 — downloads binary if needed, starts Hydra
+│       ├── start-dev.sh                # Downloads binary if needed, runs migration, starts Hydra
 │       └── register-clients.sh         # Registers dev-clients.json via Hydra admin API
 │
-├── login-app/                          # Spring Boot + React Login App (IDM-1 core build)
-│   ├── frontend/                       # React/TypeScript source — login form, tenant selector, MFA screens
-│   │   ├── src/
-│   │   │   ├── components/             # Reusable UI components (LoginForm, TenantSelector, MfaChallenge)
-│   │   │   ├── pages/                  # Page-level components (LoginPage, ErrorPage)
-│   │   │   ├── api/                    # Typed API client — calls Spring Boot backend
-│   │   │   └── main.tsx                # React entry point
-│   │   ├── public/                     # Static assets (favicon, etc.)
-│   │   ├── package.json
-│   │   └── vite.config.ts              # Vite config — dev proxy to :8080, build output to ../src/main/resources/static
-│   ├── src/
-│   │   ├── main/
-│   │   │   ├── java/com/fbdms/idm/loginapp/
-│   │   │   │   ├── LoginAppApplication.java        # Spring Boot entry point
-│   │   │   │   ├── config/                         # Spring config classes (Security, Web, CORS)
-│   │   │   │   ├── controller/                     # HTTP controllers (LoginController, LogoutController)
-│   │   │   │   ├── service/                        # Business logic (LoginService, TenantSelectorService)
-│   │   │   │   ├── hydra/                          # Hydra admin API client (challenge accept/reject)
-│   │   │   │   └── audit/                          # Audit event emission to IDM-6
-│   │   │   └── resources/
-│   │   │       ├── static/                         # React build output lands here (git-ignored)
-│   │   │       ├── application.yml                 # Base config
-│   │   │       ├── application-local.yml           # Local dev overrides (git-ignored)
-│   │   │       └── application-prod.yml            # Production config (no secrets — uses Spring Cloud)
-│   │   └── test/
-│   │       └── java/com/fbdms/idm/loginapp/
-│   │           ├── controller/                     # Controller slice tests
-│   │           ├── service/                        # Service unit tests
-│   │           └── integration/                    # Full flow integration tests (Hydra + mocks)
-│   └── pom.xml                         # Login App Maven module — depends on idm-common
+├── login-app/                          # Spring Boot Login App
+│   ├── src/main/client/                # Angular 18 client — built by Maven, output to static/login-app/
+│   │   └── src/app/
+│   │       ├── login-page/             # LoginPageComponent + LoginForm, TenantSelector, MfaForm
+│   │       ├── model/                  # TypeScript interfaces
+│   │       └── service/                # LoginApiService
+│   ├── src/main/web-resources/
+│   │   └── test-harness.html           # Dev test harness — copied to static/ by Maven
+│   ├── src/main/java/.../loginapp/
+│   │   ├── controller/                 # LoginController — /idm-auth-gateway/login, /tenant, /mfa
+│   │   ├── service/                    # LoginService — Hydra challenge lifecycle
+│   │   ├── hydra/                      # HydraAdminClient
+│   │   ├── model/                      # Request/response records
+│   │   └── config/                     # SecurityConfig, MockBeansConfig, RestClientConfig
+│   └── pom.xml
 │
 ├── consent-app/                        # Spring Boot Consent App
-│   ├── src/
-│   │   ├── main/
-│   │   │   ├── java/com/fbdms/idm/consentapp/
-│   │   │   │   ├── ConsentAppApplication.java      # Spring Boot entry point
-│   │   │   │   ├── config/
-│   │   │   │   ├── controller/                     # ConsentController
-│   │   │   │   ├── service/                        # ConsentService — claim injection logic
-│   │   │   │   └── hydra/                          # Hydra admin API client (consent accept/reject)
-│   │   │   └── resources/
-│   │   │       ├── application.yml
-│   │   │       ├── application-local.yml           # (git-ignored)
-│   │   │       └── application-prod.yml
-│   │   └── test/
-│   └── pom.xml                         # Consent App Maven module — depends on idm-common
+│   ├── src/main/resources/static/
+│   │   └── consent/index.html          # Auto-POSTs consent challenge on load
+│   ├── src/main/java/.../consentapp/
+│   │   ├── controller/                 # ConsentController — /idm-auth-gateway/consent
+│   │   ├── service/                    # ConsentService — claim injection, first-party auto-accept
+│   │   └── config/                     # SecurityConfig, MockBeansConfig, RestClientConfig
+│   └── pom.xml
 │
-├── idm-common/                         # Shared interfaces, DTOs, constants — consumed by login-app and consent-app
-│   └── src/
-│       └── main/java/com/fbdms/idm/common/
-│           ├── service/
-│           │   ├── IdentityDirectoryService.java   # Interface — IDM-2 contract (credential verify, tenant/role lookup)
-│           │   ├── MfaService.java                 # Interface — IDM-5 contract (MFA trigger, verify)
-│           │   ├── KeyManagementService.java        # Interface — KMS abstraction (sign, rotate)
-│           │   └── SecretsService.java             # Interface — secrets abstraction (get, put)
-│           ├── dto/
-│           │   ├── UserIdentity.java               # Returned by IDM-2 on credential verification
-│           │   ├── TenantContext.java               # Tenant + roles resolved for token claim injection
-│           │   └── MfaChallenge.java               # MFA challenge/response contract with IDM-5
-│           └── exception/
-│               ├── AuthenticationException.java
-│               └── TenantResolutionException.java
-│   └── pom.xml                         # idm-common Maven module — no Spring Boot, plain Java
+├── idm-common/                         # Shared interfaces, DTOs, exceptions — plain Java, no Spring Boot
+│   └── src/main/java/.../common/
+│       ├── service/                    # IdentityDirectoryService, MfaService, TenantSelectorService, AuditService
+│       ├── model/                      # UserIdentity, TenantContext, TenantSelectionResult, MfaChallenge
+│       └── exception/                  # AuthenticationException, TenantResolutionException
 │
 ├── mocks/                              # Local dev mock implementations of idm-common interfaces
-│   └── src/
-│       └── main/java/com/fbdms/idm/mocks/
-│           ├── MockIdentityDirectoryService.java   # Returns hardcoded users, tenants, roles
-│           ├── MockMfaService.java                 # Always returns MFA success
-│           ├── MockKeyManagementService.java        # Signs with a local dev key
-│           └── MockSecretsService.java             # Reads from environment variables
-│   └── pom.xml                         # Mocks Maven module — depends on idm-common
+│   └── src/main/java/.../mocks/
+│       ├── MockIdentityDirectoryService.java   # alice (multi-tenant, no MFA), bob (single-tenant, MFA)
+│       ├── MockMfaService.java                 # Always succeeds
+│       ├── MockTenantSelectorService.java
+│       └── MockAuditService.java
 │
 ├── docs/
-│   ├── idm-auth-gateway-architecture-decisions.md  # All architecture and technology decisions with rationale
-│   └── idm-auth-gateway-component-design.md        # Component map, auth flow, interaction diagram
+│   ├── idm-auth-gateway-architecture-decisions.md
+│   └── idm-auth-gateway-component-design.md
 │
-├── pom.xml                             # Maven parent POM — declares all modules, shared dependency versions
-├── .gitignore
-└── README.md
+└── pom.xml                             # Parent POM — all modules, shared dependency versions
 ```
+
+---
 
 ## Prerequisites
 
-| Tool    | Version | Notes                           |
-| ------- | ------- | ------------------------------- |
-| Java    | 17+     | LTS                             |
-| Maven   | 3.9+    |                                 |
-| Node.js | 20+     | For React frontend              |
-| curl    | any     | For download scripts            |
-| jq      | any     | For client registration script  |
-| bash    | any     | macOS/Linux/Git Bash on Windows |
+| Tool    | Version | Notes                             |
+| ------- | ------- | --------------------------------- |
+| Java    | 17+     | LTS                               |
+| Maven   | 3.9+    |                                   |
+| Node.js | 20+     | Angular build is invoked by Maven |
+| curl    | any     | Used by Hydra scripts             |
+| jq      | any     | Used by register-clients.sh       |
+| bash    | any     | macOS / Linux / Git Bash / WSL2   |
 
-## Running Locally (No Docker Required)
+---
 
-### WSL2 / AlmaLinux 9 One-Time Setup (Windows only)
+## Setup (Clean Checkout)
 
-Run the following in **PowerShell as Administrator** — one time per machine:
+### Windows only — WSL2 / AlmaLinux 9 one-time setup
+
+Hydra requires Linux to run with SQLite. Windows developers must use WSL2.
+
+**1. Install AlmaLinux 9** (PowerShell as Administrator):
 
 ```powershell
 wsl --install -d AlmaLinux-9
 ```
 
-When the AlmaLinux terminal opens for the first time, create a Linux username and password when prompted.
+Create a Linux username and password when prompted.
 
-**Enable mirrored networking** so WSL2 shares the Windows host network (required for corporate proxy access). Create or
-edit `C:\Users\<your-username>\.wslconfig`:
+**2. Enable mirrored networking** — create or edit `C:\Users\<your-username>\.wslconfig`:
 
 ```ini
 [wsl2]
 networkingMode=mirrored
 ```
 
-Restart WSL for the change to take effect:
+Restart WSL:
 
 ```powershell
 wsl --shutdown
 wsl -d AlmaLinux-9
 ```
 
-**Configure the corporate proxy** for dnf (replace `<username>`, `<password>`, `<proxy-host>`, and `<port>` with your
-values):
+**3. Configure corporate proxy** — add to `/etc/dnf/dnf.conf`:
 
 ```bash
 sudo tee -a /etc/dnf/dnf.conf <<EOF
-proxy=http://<username>:<password>@<proxy-host>:<port>
+proxy=http://<username>:<password>@mbkproxy.fxdms.net:8080
 sslverify=false
 EOF
 ```
 
-**Configure proxy for shell sessions** so curl and other tools can reach the internet. Add the following to `~/.bashrc`
-(replace with your actual credentials):
+Add to `~/.bashrc`:
 
 ```bash
-echo 'export http_proxy=http://<username>:<password>@<proxy-host>:<port>' >> ~/.bashrc
-echo 'export https_proxy=http://<username>:<password>@<proxy-host>:<port>' >> ~/.bashrc
+echo 'export http_proxy=http://<username>:<password>@mbkproxy.fxdms.net:8080' >> ~/.bashrc
+echo 'export https_proxy=http://<username>:<password>@mbkproxy.fxdms.net:8080' >> ~/.bashrc
 echo 'export no_proxy=localhost,127.0.0.1' >> ~/.bashrc
 source ~/.bashrc
 ```
 
-**Install required tools:**
+**4. Install tools:**
 
 ```bash
 sudo dnf install -y curl jq tar
 ```
 
-Optionally set AlmaLinux as the default WSL distribution so `wsl` opens it directly:
+Optionally set AlmaLinux as the default WSL distribution:
 
 ```powershell
 wsl --set-default AlmaLinux-9
 ```
 
-### Step 1 — Start Hydra
+---
 
-**macOS / Linux (RHEL):**
+### Build — all platforms
+
+From the repo root, run once after a clean checkout to build all modules and install them into the local Maven
+repository:
+
+```bash
+mvn clean install
+```
+
+This also runs the Angular build for login-app. After this, IntelliJ run configs work without needing a full rebuild
+each time.
+
+---
+
+## Running and Testing
+
+### 1. Start Hydra
+
+**macOS / Linux:**
 
 ```bash
 chmod +x hydra/scripts/start-dev.sh
 ./hydra/scripts/start-dev.sh
 ```
 
-**Windows:** Open the AlmaLinux terminal and navigate to the repo:
-
-```powershell
-wsl -d AlmaLinux-9
-```
+**Windows** — open the AlmaLinux WSL2 terminal:
 
 ```bash
 cd /mnt/c/projects/idmx-platform/idm-auth-gateway
 ./hydra/scripts/start-dev.sh
 ```
 
-This will:
+On first run this downloads the Hydra binary and runs the SQLite migration. On subsequent runs it just starts Hydra.
+Leave this terminal open — Hydra runs in the foreground.
 
-- Detect your OS and architecture
-- Download the correct Hydra v26.2.0 binary (first run only)
-- Run the SQLite database migration
-- Start Hydra on ports 4444 (public) and 4445 (admin)
+### 2. Register dev OAuth2 clients
 
-> **Windows:** The standard Windows Hydra binary does not include SQLite. Windows developers should use WSL2 with
-> AlmaLinux 9 — see the [WSL2 setup section above](#wsl2--almalinux-9-one-time-setup-windows-only).
-
-### Step 2 — Register Dev OAuth2 Clients
-
-In a new terminal:
+In a new terminal, after Hydra is up:
 
 ```bash
 ./hydra/scripts/register-clients.sh
 ```
 
-### Step 3 — Verify Hydra is Running
+Safe to re-run at any time — existing clients are updated, not duplicated. Only needs to be re-run if `dev-clients.json`
+changes or the Hydra database is wiped.
 
-```bash
-# OIDC discovery endpoint
-curl http://localhost:4444/.well-known/openid-configuration
+### 3. Start Login App
 
-# Health check
-curl http://localhost:4445/health/ready
-```
-
-### Step 4 — Start Login App
-
-Run via the IntelliJ run configuration **LoginAppApplication**, or from the command line:
+Use the IntelliJ run configuration **LoginAppApplication**, or from the command line:
 
 ```bash
 mvn spring-boot:run -pl login-app -am -Dspring-boot.run.profiles=winLocal
 ```
 
-### Step 5 — Start Consent App
+Runs on port **8080**. The Angular client is served at `http://localhost:8080/login-app/`.
 
-Run via the IntelliJ run configuration **ConsentAppApplication**, or from the command line:
+### 4. Start Consent App
+
+Use the IntelliJ run configuration **ConsentAppApplication**, or from the command line:
 
 ```bash
 mvn spring-boot:run -pl consent-app -am -Dspring-boot.run.profiles=winLocal
 ```
 
-### Step 6 — Test the Full Flow
+Runs on port **8082**.
 
-Navigate to the test harness in your browser:
+### 5. Run the test harness
+
+Open in a browser:
 
 ```
 http://localhost:8080/test-harness.html
 ```
 
-Click **Start Login Flow**. Test users:
+The harness simulates a SaaS app initiating an OAuth2 authorization code flow with PKCE.
 
-| Username | Password   | Tenants                        | MFA            |
-| -------- | ---------- | ------------------------------ | -------------- |
-| `alice`  | `password` | `tenant-acme`, `tenant-globex` | No             |
-| `bob`    | `password` | `tenant-acme`                  | Yes (any code) |
+**How to use:**
 
-## Dev OAuth2 Clients
+1. Select a **Client ID** from the dropdown — the client secret fills in automatically.
+2. Click **▶ Start Login Flow** — the browser redirects to the Angular login page.
+3. Enter credentials and complete the flow (tenant selection and/or MFA if applicable).
+4. After consent, the browser redirects back to the harness showing the authorization code.
+5. Click **Exchange Code for Tokens** — the harness exchanges the code for tokens and displays the result including
+   decoded ID token claims.
 
-| Client ID           | Purpose                         | Redirect URIs                                                               |
-| ------------------- | ------------------------------- | --------------------------------------------------------------------------- |
-| `test-saas-app`     | Simulates a downstream SaaS app | `http://localhost:9000/callback`, `http://localhost:8080/test-harness.html` |
-| `idm-admin-console` | IDM-4 Admin Console             | `http://localhost:4000/callback`                                            |
+**Test users:**
+
+| Username | Password   | Tenants                        | MFA                  | Notes                       |
+| -------- | ---------- | ------------------------------ | -------------------- | --------------------------- |
+| `alice`  | `password` | `tenant-acme`, `tenant-globex` | No                   | Shows tenant selector       |
+| `bob`    | `password` | `tenant-acme`                  | Yes — enter any code | Single tenant, MFA required |
+
+**Dev clients:**
+
+| Client ID           | Secret                     |
+| ------------------- | -------------------------- |
+| `test-saas-app`     | `test-saas-app-secret`     |
+| `idm-admin-console` | `idm-admin-console-secret` |
+
+Any user can log in via any client — users and clients are independent.
+
+---
 
 ## Ports
 
-| Service          | Port |
-| ---------------- | ---- |
-| Hydra Public     | 4444 |
-| Hydra Admin      | 4445 |
-| Login App        | 8080 |
-| Consent App      | 8082 |
-| React Dev Server | 3000 |
+| Service      | Port |
+| ------------ | ---- |
+| Hydra Public | 4444 |
+| Hydra Admin  | 4445 |
+| Login App    | 8080 |
+| Consent App  | 8082 |
+
+---
 
 ## Documentation
 
-| Document                                                                                             | Description                                              |
-| ---------------------------------------------------------------------------------------------------- | -------------------------------------------------------- |
-| [`docs/idm-auth-gateway-architecture-decisions.md`](docs/idm-auth-gateway-architecture-decisions.md) | All architecture and technology decisions with rationale |
-| [`docs/idm-auth-gateway-component-design.md`](docs/idm-auth-gateway-component-design.md)             | Component map, auth flow, interaction diagram            |
+| Document                                                                                             | Description                                          |
+| ---------------------------------------------------------------------------------------------------- | ---------------------------------------------------- |
+| [`docs/idm-auth-gateway-architecture-decisions.md`](docs/idm-auth-gateway-architecture-decisions.md) | Architecture and technology decisions with rationale |
+| [`docs/idm-auth-gateway-component-design.md`](docs/idm-auth-gateway-component-design.md)             | Component map, auth flow, interaction diagram        |
