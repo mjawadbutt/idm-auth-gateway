@@ -1,10 +1,16 @@
-# idm-auth-gateway — Architecture Decisions
+# idm-auth-gateway — Architecture & Design Decisions
 
 ## Context
 
 Building a new cloud-native IAM platform (IDM) for FBDMS Digital Experience Suite. The platform is split into 6
 services. This service is **idm-auth-gateway** (IDM-1) — the OAuth2/OIDC authorization server and authentication gateway
 that serves as the entry point to every product in the Digital Experience Suite.
+
+---
+
+# Architecture Decisions
+
+> Structural choices about system shape, component boundaries, and technology selection. Hard to reverse, high impact.
 
 ---
 
@@ -214,6 +220,12 @@ sudo dnf install -y curl jq tar
 
 ---
 
+# Design Decisions
+
+> Feature-level implementation choices within the established architecture.
+
+---
+
 ## Decision 11 — Single Logout: OIDC Back-Channel Logout via Hydra
 
 ### Approach
@@ -275,9 +287,9 @@ Each SaaS app's backchannel_logout_uri endpoint:
 
 - Register a `backchannel_logout_uri` in Hydra at client registration time
 - Implement the `backchannel_logout_uri` endpoint:
-    - Validate the `logout_token` JWT — verify signature against Hydra's JWKS, check `iss`, `aud`, `events` claim
-    - Invalidate the local session for the `sub` in the token
-    - Return `200 OK` on success (Hydra retries on non-2xx)
+  - Validate the `logout_token` JWT — verify signature against Hydra's JWKS, check `iss`, `aud`, `events` claim
+  - Invalidate the local session for the `sub` in the token
+  - Return `200 OK` on success (Hydra retries on non-2xx)
 
 **Hydra configuration:**
 
@@ -291,3 +303,105 @@ Each SaaS app's backchannel_logout_uri endpoint:
   server-to-server by Hydra, not by the user's browser
 - `backchannel_logout_uri` registration is an operational/onboarding concern — documented as an open item and enforced
   during SaaS client onboarding via IDM-3
+
+---
+
+## Decision 12 — Tenant Resolution Strategy
+
+### Context
+
+When a user arrives at the Login App via an OAuth/OIDC authorization request, the Login App must determine which tenant
+the user belongs to in order to route authentication correctly (local auth, SAML SSO, OIDC federation, etc.).
+
+### Options Considered
+
+**Option 1 — Email domain (user inputs it)** User enters their email on the Login App. The Login App extracts the domain
+and looks up tenant config in IDM-2. Requires user interaction. Typical for B2C or mixed-audience scenarios.
+
+**Option 2 — `login_hint` parameter in the OAuth request** The client app passes the tenant identifier explicitly in the
+authorization request:
+
+```
+GET /oauth2/auth?...&login_hint=acmecorp
+```
+
+The Login App reads `login_hint` from the Hydra login challenge. No user interaction needed — the app already knows
+which tenant it is serving.
+
+**Option 3 — Subdomain of the authorization URL** Each tenant gets a subdomain on the authorization server URL
+(`acmecorp.auth.yourdomain.com`). The tenant identifier is encoded in the hostname, extracted from the `Host` /
+`X-Forwarded-Host` header. No user interaction, no extra OAuth parameters.
+
+**Option 4 — Subdomain of the app URL translated to `login_hint`** Functionally equivalent to Option 2 but the signal
+originates from the client app's own subdomain rather than explicit configuration.
+
+**Option 5 — `acr_values` parameter** Rejected — `acr_values` has a defined purpose (Authentication Context Class
+Reference) and overloading it for tenant routing is a semantic smell.
+
+**Option 6 — Custom OAuth parameter** Non-standard `tenant=acmecorp` parameter. Simple but not spec-compliant.
+
+### Decision: Option 2 (Primary) + Option 3 (Complementary)
+
+**Rationale**: This platform is B2B SaaS serving enterprise tenants. The client app always knows which tenant it is
+serving, so `login_hint` is a natural and explicit contract. Option 2 is chosen as primary because it is portable —
+tenant resolution has no dependency on infrastructure topology, wildcard DNS, or Hydra's `login_url` configuration.
+Option 3 (subdomain) is retained as a complementary signal for URL-level tenant isolation and branding, but the Login
+App must not rely on it as the sole resolution mechanism.
+
+### Primary: Option 2 — `login_hint`
+
+The client app passes the tenant identifier in the authorization request. The Login App reads `login_hint` from the
+Hydra login challenge payload. No user interaction, no infrastructure dependency, no `Host` header parsing required.
+
+### Complementary: Option 3 — Subdomain on Authorization URL
+
+Provides URL-level tenant isolation and enables per-tenant branding. The subdomain is also used as a consistency check —
+if both `login_hint` and the subdomain are present, they must agree.
+
+Infrastructure required:
+
+```
+DNS:  *.auth.yourdomain.com  →  wildcard A/CNAME record pointing to the ALB
+TLS:  *.auth.yourdomain.com  →  wildcard certificate issued via ACM
+```
+
+The Login App extracts the tenant from the hostname via a `TenantResolutionFilter` that runs before any controller:
+
+```java
+String host = request.getServerName(); // "acmecorp.auth.yourdomain.com"
+String subdomain = host.split("\\.")[0]; // "acmecorp"
+// look up tenant config for "acmecorp" from IDM-2
+```
+
+### Constraint: Hydra `login_url` Must Use Public Domain
+
+When Option 3 is active, Hydra's `login_url` must use the public-facing domain, not an internal service name:
+
+```
+# Correct
+login_url = https://auth.yourdomain.com/login
+
+# Wrong — internal name loses the subdomain, browser cannot resolve it
+login_url = http://login-app:8080/login
+```
+
+This is why Option 2 is primary — `login_hint` has no such deployment dependency.
+
+### Spring Configuration
+
+The Login App must be configured to read `X-Forwarded-Host` from the ALB rather than the rewritten `Host` header. Both
+properties are set in `application.properties`:
+
+```properties
+# Read X-Forwarded-* headers set by the proxy/load balancer
+server.forward-headers-strategy=framework
+
+# Trust X-Forwarded-* headers only from private IP ranges (your own proxy/load balancer)
+server.tomcat.remoteip.internal-proxies=10\.0\.0\.0/8,172\.16\.0\.0/12,192\.168\.0\.0/16
+```
+
+With `forward-headers-strategy=framework`, `request.getServerName()` reads from `X-Forwarded-Host` when present, falling
+back to `Host` in local dev. The extraction logic is unchanged across environments.
+
+**Security note**: `X-Forwarded-*` headers must only be trusted from your own proxy. AWS ALB strips client-supplied
+forwarded headers before forwarding. The `internal-proxies` config enforces this for non-AWS deployments.

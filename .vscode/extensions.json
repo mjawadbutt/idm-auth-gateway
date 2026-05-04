@@ -2,6 +2,11 @@
   "recommendations": [
     "esbenp.prettier-vscode",
     "k--kato.intellij-idea-keybindings",
-    "redhat.java"
+    "redhat.java",
+    "amazonwebservices.aws-toolkit-vscode",
+    "rangav.vscode-thunder-client",
+    "yzhang.markdown-all-in-one",
+    "hediet.vscode-drawio",
+    "usernamehw.errorlens"
   ]
 }
