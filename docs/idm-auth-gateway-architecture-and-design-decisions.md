@@ -210,16 +210,6 @@ sudo dnf install -y curl jq tar
 
 ---
 
-## Open Items
-
-> Not blockers for idm-auth-gateway construction.
-
-- **WAO dependency** — deferred, not relevant to idm-auth-gateway
-- **Token lifetime policy** — configuration decision, made during construction
-- **Back-channel logout URI registration per SaaS client** — operational/onboarding concern
-
----
-
 # Design Decisions
 
 > Feature-level implementation choices within the established architecture.
@@ -340,25 +330,30 @@ Reference) and overloading it for tenant routing is a semantic smell.
 
 **Option 6 — Custom OAuth parameter** Non-standard `tenant=acmecorp` parameter. Simple but not spec-compliant.
 
-### Decision: Option 2 (Primary) + Option 3 (Complementary)
+### Decision: Option 2 (Primary) + Option 3 (Fallback)
 
 **Rationale**: This platform is B2B SaaS serving enterprise tenants. The client app always knows which tenant it is
 serving, so `login_hint` is a natural and explicit contract. Option 2 is chosen as primary because it is portable —
 tenant resolution has no dependency on infrastructure topology, wildcard DNS, or Hydra's `login_url` configuration.
-Option 3 (subdomain) is retained as a complementary signal for URL-level tenant isolation and branding, but the Login
-App must not rely on it as the sole resolution mechanism.
+Option 3 (subdomain) is used as a fallback only when `login_hint` is absent — it must not be relied upon as the primary
+signal.
 
 ### Primary: Option 2 — `login_hint`
 
 The client app passes the tenant identifier in the authorization request. The Login App reads `login_hint` from the
 Hydra login challenge payload. No user interaction, no infrastructure dependency, no `Host` header parsing required.
 
-### Complementary: Option 3 — Subdomain on Authorization URL
+This is the expected path for all well-behaved clients.
 
-Provides URL-level tenant isolation and enables per-tenant branding. The subdomain is also used as a consistency check —
-if both `login_hint` and the subdomain are present, they must agree.
+### Fallback: Option 3 — Subdomain on Authorization URL
 
-Infrastructure required:
+Used only when `login_hint` is not present in the login challenge. The Login App extracts the tenant from the
+`X-Forwarded-Host` / `Host` header as a secondary resolution attempt.
+
+This provides URL-level tenant isolation and enables per-tenant branding as a side effect, but its primary role in the
+resolution logic is fallback only.
+
+Infrastructure required (for fallback to function):
 
 ```
 DNS:  *.auth.yourdomain.com  →  wildcard A/CNAME record pointing to the ALB
@@ -393,15 +388,67 @@ The Login App must be configured to read `X-Forwarded-Host` from the ALB rather 
 properties are set in `application.properties`:
 
 ```properties
-# Read X-Forwarded-* headers set by the proxy/load balancer
+# Enable reading of X-Forwarded-* headers set by the proxy/load balancer (e.g. X-Forwarded-Host for tenant resolution).
 server.forward-headers-strategy=framework
 
-# Trust X-Forwarded-* headers only from private IP ranges (your own proxy/load balancer)
+# Trust X-Forwarded-* headers only from requests originating within private IP ranges (i.e. from our own/internal proxy).
+# For requests from outside these ranges, SpringBoot will strip out the forwarded headers before the app sees them.
 server.tomcat.remoteip.internal-proxies=10\.0\.0\.0/8,172\.16\.0\.0/12,192\.168\.0\.0/16
 ```
 
-With `forward-headers-strategy=framework`, `request.getServerName()` reads from `X-Forwarded-Host` when present, falling
-back to `Host` in local dev. The extraction logic is unchanged across environments.
+Note that:
 
-**Security note**: `X-Forwarded-*` headers must only be trusted from your own proxy. AWS ALB strips client-supplied
-forwarded headers before forwarding. The `internal-proxies` config enforces this for non-AWS deployments.
+- `server.forward-headers-strategy=framework` — `request.getServerName()` reads from `X-Forwarded-Host` when present,
+  falling back to `Host` in local dev. The extraction logic is unchanged across environments.
+- `server.tomcat.remoteip.internal-proxies` — `X-Forwarded-*` headers are only trusted from your own proxy. AWS ALB
+  strips client-supplied forwarded headers before forwarding, so this is redundant on ALB but enforces the same
+  constraint for non-AWS deployments (nginx, HAProxy, on-prem load balancers).
+
+---
+
+## Decision 13 — User Identity Model: UUID Surrogate Key + Linked Identity Natural Key
+
+### Context
+
+Hydra requires a globally unique, stable `subject` value to maintain session-to-user mappings. Users can be created
+locally in IDM-2 or arrive via external identity providers (SAML, OIDC). Both cases must produce a consistent, globally
+unique identifier that Hydra can use as `subject`.
+
+### Decision
+
+Every user in IDM-2 is assigned a **generated UUID as the surrogate key**. This UUID is passed to Hydra as `subject` and
+used as the stable user reference across all downstream services.
+
+User identity is tracked via **linked identities** — a separate collection per user that records where the user came
+from. The natural key of a linked identity is the combination of three fields:
+
+```
+(tenant_id, provider, external_id)
+```
+
+This triple is enforced as a unique constraint — no duplicate entries. One user may have multiple linked identity rows
+(e.g. local + SAML after a tenant migrates to SSO), but each `(tenant_id, provider, external_id)` combination is unique
+across the entire platform.
+
+### Rationale
+
+- The UUID surrogate key decouples all downstream references from mutable user attributes (email, username). If a user's
+  email changes, only the linked identity record is updated — the UUID and all downstream references are unchanged.
+- The linked identity model handles both locally created users and JIT-provisioned federated users uniformly. The Login
+  App always resolves identity via the same lookup: `(tenant_id, provider, external_id) → UUID`.
+- A user belonging to multiple tenants has one UUID but multiple linked identity rows — one per `(tenant_id, provider)`
+  combination. The UUID is the stable anchor across all tenant contexts.
+
+### Recommended Values
+
+**`provider`**: use `{protocol}:{issuer-or-entity-id}` — e.g. `local:idm`, `saml:adfs.acmecorp.com`,
+`oidc:accounts.google.com`. For OIDC use the `iss` claim value; for SAML use the IdP `entityID`.
+
+**`external_id`**:
+
+- Local users (`local:idm`) → email address
+- OIDC providers → `sub` claim (or `oid` for Azure AD)
+- SAML providers → persistent `NameID` or stable opaque attribute (`objectGUID`, Okta user ID)
+
+See `docs/user-identity-model.md` for the full reference including provider/external_id option tables, example records,
+and email considerations.
