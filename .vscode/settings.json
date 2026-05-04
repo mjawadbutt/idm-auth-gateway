@@ -1,4 +1,5 @@
 {
+  "markdown.styles": [".vscode/markdown.css"],
   "prettier.proseWrap": "always",
   "prettier.printWidth": 120,
   "[markdown]": {
