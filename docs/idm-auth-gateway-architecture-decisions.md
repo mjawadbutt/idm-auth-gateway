@@ -77,18 +77,18 @@ Reasons:
 
 ---
 
-## Decision 5 — Frontend: React/TypeScript Bundled in Spring Boot JAR
+## Decision 5 — Frontend: Angular/TypeScript Bundled in Spring Boot JAR
 
-The Login App frontend (login form, tenant selector, MFA screens) will be built in **React/TypeScript**, bundled into
+The Login App frontend (login form, tenant selector, MFA screens) will be built in **Angular/TypeScript**, bundled into
 the Spring Boot JAR at build time.
 
-- React build output placed in `src/main/resources/static` — served by Spring Boot automatically
-- React calls the Java backend via REST on the same origin — no CORS complexity
+- Angular build output placed in `src/main/resources/static` — served by Spring Boot automatically
+- Angular calls the Java backend via REST on the same origin — no CORS complexity
 - Single deployable: one container image, one pipeline, one artifact
-- Local development: React dev server proxies `/api` calls to Spring Boot
+- Local development: Angular dev server proxies `/api` calls to Spring Boot
 
 Security is not a concern with this approach provided the Hydra admin port (4445) is never exposed externally and no
-secrets are baked into the React bundle.
+secrets are baked into the Angular bundle.
 
 ---
 
@@ -211,3 +211,83 @@ sudo dnf install -y curl jq tar
 - **WAO dependency** — deferred, not relevant to idm-auth-gateway
 - **Token lifetime policy** — configuration decision, made during construction
 - **Back-channel logout URI registration per SaaS client** — operational/onboarding concern
+
+---
+
+## Decision 11 — Single Logout: OIDC Back-Channel Logout via Hydra
+
+### Approach
+
+OIDC Back-Channel Logout is the selected SLO mechanism. It is server-to-server — no browser redirects, no iframe
+dependencies, no requirement for the user's browser to remain open. Hydra supports it natively.
+
+Front-Channel Logout was rejected: it relies on the browser loading logout URIs via iframes, which are unreliable
+(blocked by browsers, requires user's browser to be open and active).
+
+Token-only revocation is necessary but not sufficient for SLO. Revoking the access token does not terminate app-level
+sessions, and stateless JWT validation at resource APIs means the token remains accepted until natural expiry
+regardless.
+
+### What "logout" means in this stack
+
+A complete logout must terminate three things:
+
+```
+1. The Hydra session          → prevents silent re-auth via prompt=none or refresh token
+2. Each SaaS app's session    → prevents the user remaining "logged in" at the app level
+3. The refresh token          → prevents token renewal after session termination
+```
+
+Revoking only the access token addresses none of these reliably.
+
+### Flow
+
+```
+User clicks logout in any SaaS app
+    ↓
+SaaS app calls Login App logout endpoint:
+  POST /logout
+  Authorization: Bearer <access_token>
+    ↓
+Login App:
+  1. Calls Hydra admin API to revoke the session
+     → Hydra identifies all clients that participated in the session
+     → Hydra POSTs a signed logout_token JWT to each client's registered backchannel_logout_uri (server-to-server)
+  2. Revokes the refresh token via Hydra revocation endpoint
+  3. Clears the Login App's own session cookie
+    ↓
+Each SaaS app's backchannel_logout_uri endpoint:
+  1. Validates the logout_token JWT (signature, iss, aud, events claim)
+  2. Extracts sub from the logout_token
+  3. Invalidates the local session for that sub
+```
+
+### Implementation requirements
+
+**idm-auth-gateway (Login App):**
+
+- Expose `POST /logout` endpoint — accepts the user's access token, drives the full logout sequence
+- Call Hydra's session revocation API to trigger back-channel logout propagation
+- Call Hydra's token revocation endpoint to revoke the refresh token
+- Clear the Login App session cookie in the response
+
+**Each SaaS client (at onboarding):**
+
+- Register a `backchannel_logout_uri` in Hydra at client registration time
+- Implement the `backchannel_logout_uri` endpoint:
+    - Validate the `logout_token` JWT — verify signature against Hydra's JWKS, check `iss`, `aud`, `events` claim
+    - Invalidate the local session for the `sub` in the token
+    - Return `200 OK` on success (Hydra retries on non-2xx)
+
+**Hydra configuration:**
+
+- `backchannel_logout_session_required: true` — enforces that clients must support back-channel logout
+- `backchannel_logout_delay` — configurable delay between logout calls to clients if needed
+
+### Security notes
+
+- The `logout_token` is signed by Hydra — the receiving app must verify the signature before acting on it
+- The `backchannel_logout_uri` endpoint must not require the user's session cookie to function — it is called
+  server-to-server by Hydra, not by the user's browser
+- `backchannel_logout_uri` registration is an operational/onboarding concern — documented as an open item and enforced
+  during SaaS client onboarding via IDM-3

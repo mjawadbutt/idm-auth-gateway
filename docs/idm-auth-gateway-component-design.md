@@ -12,7 +12,7 @@ two ports:
 - Admin port (4445) — internal only, never exposed externally. Login App and Consent App call this to accept/reject
   challenges and manage clients.
 
-**Login App (Spring Boot + React)** End-user facing. The page users land on when they click "Sign In" on any SaaS
+**Login App (Spring Boot + Angular)** End-user facing. The page users land on when they click "Sign In" on any SaaS
 product. Responsibilities:
 
 - Receives `login_challenge` from Hydra via redirect
@@ -71,7 +71,7 @@ IDM-5 is an adapter/plugin layer. It does not own flow control — the Login App
                                │ login_challenge redirect
                     ┌──────────▼──────────┐
                     │     Login App :8080  │◄──── IDM-5 (MFA / federation adapters)
-                    │  Spring Boot + React │
+                    │  Spring Boot + Angular │
                     └──────┬──────┬───────┘
                            │      │
               credentials  │      │ audit events
@@ -119,7 +119,7 @@ IDM-5 is an adapter/plugin layer. It does not own flow control — the Login App
 | Component                                | Build or Configure | Notes                                                |
 | ---------------------------------------- | ------------------ | ---------------------------------------------------- |
 | Ory Hydra                                | Configure          | Deploy as binary/container, write `hydra.yml` config |
-| Login App                                | Build              | Spring Boot + React, team writes this                |
+| Login App                                | Build              | Spring Boot + Angular, team writes this              |
 | Consent App                              | Build              | Spring Boot, team writes this                        |
 | Hydra storage (SQLite/PostgreSQL)        | Configure          | Run `hydra migrate sql`                              |
 | Hydra OAuth2 client registrations        | Configure          | Register each SaaS app via Hydra admin API           |
