@@ -30,6 +30,98 @@ Hydra is:
 Keycloak and ZITADEL were evaluated. Hydra was chosen for its clean bounded context alignment, performance ceiling, and
 architectural fit with the multi-service design.
 
+### The problem Hydra solves
+
+Without Hydra, the Login App and Consent App would have to implement the entire OAuth2/OIDC protocol themselves —
+authorization code flow, PKCE validation, token signing and rotation, token introspection, refresh token lifecycle,
+client registration, scope enforcement, and JWKS publication. That is a large, security-critical surface area with no
+tolerance for error.
+
+Hydra takes all of that off the table. It owns the protocol state machine and is solely responsible for issuing tokens.
+What it deliberately does not do is authenticate users or make consent decisions — it delegates those two concerns back
+to the Login App and Consent App via a **challenge/accept API**. This is the core of Hydra's design contract.
+
+### The challenge/accept contract
+
+Every OAuth2 authorization request flows through Hydra, but Hydra pauses at two points and asks the application to make
+a decision:
+
+**Login challenge** — "Has this user authenticated? Who are they?"
+
+Hydra creates a login challenge and redirects the browser to the Login App's configured `login_url`. The Login App
+retrieves the challenge details from Hydra's admin API, authenticates the user (credentials, tenant resolution, MFA),
+then calls the admin API to either accept or reject the challenge. On accept, Hydra redirects the browser onward.
+
+**Consent challenge** — "Has this user consented to the requested scopes? What claims should go in the token?"
+
+Hydra creates a consent challenge and redirects the browser to the Consent App's configured `consent_url`. The Consent
+App retrieves the challenge, decides whether to auto-accept (first-party clients) or require explicit user consent
+(third-party clients), injects custom claims into the token session, then calls the admin API to accept or reject. On
+accept, Hydra issues the authorization code.
+
+The full flow end-to-end:
+
+```
+Browser → Hydra /oauth2/auth
+            ↓  (login challenge created)
+         Login App
+           - fetches challenge from Hydra admin API
+           - authenticates user: credentials → tenant resolution → MFA
+           - accepts challenge via Hydra admin API (sets subject = user UUID)
+            ↓  (login accepted)
+         Hydra → redirects to Consent App
+            ↓  (consent challenge created)
+         Consent App
+           - fetches challenge from Hydra admin API
+           - injects custom claims: tenant_id, tenant_name, roles, permissions
+           - accepts challenge via Hydra admin API
+            ↓  (consent accepted)
+         Hydra → issues authorization code → redirects to client
+            ↓
+         Client → Hydra /oauth2/token (code exchange)
+            ↓
+         Hydra → issues access token + ID token + refresh token
+```
+
+### Division of responsibility
+
+| Concern                                   | Owner       |
+| ----------------------------------------- | ----------- |
+| OAuth2/OIDC protocol correctness          | Hydra       |
+| Token signing, rotation, JWKS publication | Hydra       |
+| Client registry, scope enforcement        | Hydra       |
+| PKCE validation                           | Hydra       |
+| Refresh token lifecycle                   | Hydra       |
+| Session management, back-channel logout   | Hydra       |
+| User authentication (who are you?)        | Login App   |
+| Tenant resolution, MFA orchestration      | Login App   |
+| Consent decisions (first vs third party)  | Consent App |
+| Custom claim injection into token session | Consent App |
+| Identity store, user/role/permission data | IDM-2       |
+| MFA adapters, federation (SAML/OIDC)      | IDM-5       |
+
+This boundary means the Login App and Consent App contain no protocol logic — they are pure business logic components
+that communicate with Hydra over its admin API. Hydra contains no business logic — it is a pure protocol engine that
+defers all identity and consent decisions to the application layer.
+
+### Why not Keycloak or ZITADEL
+
+Both Keycloak and ZITADEL are full-stack IAM platforms — they bundle the protocol engine, user store, admin UI, and
+federation adapters into a single deployable. That is the right choice when you want a turnkey solution. It is the wrong
+choice here because:
+
+- **Bounded context violation.** This platform has a dedicated identity store (IDM-2) and a dedicated federation layer
+  (IDM-5). Keycloak/ZITADEL would duplicate those concerns internally, creating two sources of truth for user data and
+  two federation integration points.
+- **Customisation ceiling.** Keycloak's login UI is customisable via themes but the customisation model is constrained.
+  The Login App here needs to own tenant resolution, multi-tenant selector UX, and MFA orchestration — logic that does
+  not fit cleanly into a Keycloak theme or SPI.
+- **Operational complexity.** Keycloak and ZITADEL carry significant operational weight (their own databases, their own
+  clustering model, their own upgrade paths). Hydra is a single stateless binary backed by a standard relational
+  database — simpler to operate, simpler to scale.
+- **Performance ceiling.** Hydra is a Go binary purpose-built for high-throughput token issuance. Keycloak is a Java EE
+  application with a much higher resource footprint per instance.
+
 ---
 
 ## Decision 2 — Login App and Consent App Owned by IDM-1
